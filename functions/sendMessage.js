@@ -27,10 +27,10 @@ const saveMessage = async (ctx) => {
 
   // Ma'lumotlarni bazaga yozish
   const query = `
-          INSERT INTO admin_messages (first_name, message, tg_name)
-          VALUES ($1, $2, $3)
-          RETURNING *;
-        `;
+    INSERT INTO admin_messages (first_name, message, tg_name)
+    VALUES ($1, $2, $3)
+    RETURNING *;
+  `;
   const values = [chat?.first_name, text_send, chat.username];
   const groupQuery = `SELECT * FROM merchants_bot;`;
 
@@ -39,23 +39,16 @@ const saveMessage = async (ctx) => {
 
     // Merchant guruhlariga xabar yuborish
     for (const merchant of resGroups.rows) {
-      const groupId = merchant.group_id;
+      let groupId = merchant.group_id;
 
       try {
         // Guruhga xabar yuborish
-        const sentMessage = await ctx.telegram.sendMessage(groupId, text_send);
-
-        // Yuborilgan xabarni zakrepit qilish (pin qilish)
-        await ctx.telegram.pinChatMessage(groupId, sentMessage.message_id, {
-          disable_notification: true, // Xabarni zakrepleniye qilsangiz, bildirishnoma jo'natilmaydi
-        });
-
-        console.log(`Xabar yuborildi va zakrepit qilindi: ${groupId}`);
+        await ctx.telegram.sendMessage(groupId, text_send);
+        console.log(`Xabar yuborildi: ${groupId}`);
       } catch (err) {
-        console.error(
-          `Xabar yuborishda yoki zakrepit qilishda xatolik: ${groupId}`,
-          err
-        );
+        // Agar bot guruhda bo'lmasa yoki admin bo'lmasa, xatolikni log qilib, siklni davom ettiradi
+        // Guruhda bot bo'lmasa yoki admin bo'lmasa davom etish
+        continue;
       }
     }
 
@@ -75,6 +68,7 @@ const saveMessage = async (ctx) => {
 
   return ctx.scene.leave();
 };
+
 
 const adminMessageWizard = new WizardScene(
   "admin_message_wizard",

@@ -44,6 +44,14 @@ CREATE TABLE merchants_bot(
     merchant_name text
 );
 
+CREATE TABLE bot_applications(
+    id serial primary key,
+    application_id int,
+    status text default 'new',
+    CONSTRAINT unique_application_id UNIQUE (application_id)
+);
+
+
 -- insert admin
 INSERT INTO
     users(
@@ -243,3 +251,8 @@ VALUES
         'Вы можете найти информацию в мобильном приложении Allgood Nasiya в разделе "Заявки". Выберите нужный договор и просмотрите соответствующий график платежей. Также можно обратиться в наш контактный центр по номеру +998 55 520 90 90.',
         'ru'
     );
+
+
+
+-- insert merchants
+

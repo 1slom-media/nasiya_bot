@@ -15,18 +15,24 @@ import {
 import { handleCompleteRequest } from "./functions/completeRequest.js";
 import userInfoWizard from "./functions/loginScene.js";
 import adminMessageWizard from "./functions/sendMessage.js";
+import client2 from "./db/nasiya.js";
+import { cretaeApplicationsGrafik, sendApplicationGrafik } from "./functions/allgood.js";
 
 // db connect
 client
   .connect()
   .then(() => console.log("Ulanish muvaffaqiyatli"))
   .catch((err) => console.error("Xato yuz berdi:", err));
+client2
+  .connect()
+  .then(() => console.log("Nsiya Ulanish muvaffaqiyatli"))
+  .catch((err) => console.error("Nasiya Xato yuz berdi:", err));
+setInterval(() => {
+  cretaeApplicationsGrafik();
+  sendApplicationGrafik();
+}, 3*60 * 1000);
 const bot = new Telegraf(config.token);
-
-const stage = new Scenes.Stage([
-  userInfoWizard,
-  adminMessageWizard
-]);
+const stage = new Scenes.Stage([userInfoWizard, adminMessageWizard]);
 bot.use(
   session({
     defaultSession: () => ({
@@ -56,7 +62,7 @@ bot.start(async (ctx) => {
   } else {
     const isRegistered = await checkUserRegistered(userId);
     const isAdmined = await isAdmin(userId);
-    await handleMainMenu(ctx,language, isRegistered, isAdmined);
+    await handleMainMenu(ctx, language, isRegistered, isAdmined);
   }
 });
 // `/lang` command
@@ -97,7 +103,7 @@ bot.hears([messagesUz.faq, messagesRu.faq], async (ctx) => {
 });
 
 bot.hears([messagesUz.sendMes, messagesRu.sendMes], async (ctx) => {
-  ctx.scene.enter("admin_message_wizard")
+  ctx.scene.enter("admin_message_wizard");
 });
 
 bot.hears([messagesUz.back, messagesRu.back], async (ctx) => {
@@ -136,9 +142,17 @@ bot.on("message", async (ctx) => {
     const messageText = ctx.message.text || ctx.message.caption; // Xabar matni yoki caption
     const botUsername = ctx.botInfo.username; // Bot username
 
-    if (ctx.message.photo && messageText.includes(`@${botUsername}`) && !messageText.includes("/lang")) {
+    if (
+      ctx.message.photo &&
+      messageText.includes(`@${botUsername}`) &&
+      !messageText.includes("/lang")
+    ) {
       await requestPhoto(ctx, messageText, botUsername);
-    } else if (messageText && messageText.includes(`@${botUsername}`) && !messageText.includes("/lang")) {
+    } else if (
+      messageText &&
+      messageText.includes(`@${botUsername}`) &&
+      !messageText.includes("/lang")
+    ) {
       await requestNoPhoto(ctx, messageText, botUsername);
     } else {
       console.log("Bot belgilanmagan yoki xabar matn/caption mavjud emas.");
