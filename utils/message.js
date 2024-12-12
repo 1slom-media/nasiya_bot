@@ -74,6 +74,6 @@ ${request.request_text}
   
 👮‍♂️ <b>Админ:</b> ${admin.tg_name}
 💬 <b>Админ жавоби:</b>
-"${replyText}"
+"${replyText}" 
   `;
 };

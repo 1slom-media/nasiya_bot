@@ -31,10 +31,10 @@ client2
   .catch((err) => console.error("Nasiya Xato yuz berdi:", err));
 
 // sendGrafik
-// setInterval(() => {
-//   cretaeApplicationsGrafik();
-//   sendApplicationGrafik();
-// }, 3*60 * 1000);
+setInterval(() => {
+  cretaeApplicationsGrafik();
+  sendApplicationGrafik();
+}, 2*60 * 1000);
 
 // newBot
 const bot = new Telegraf(config.token);
