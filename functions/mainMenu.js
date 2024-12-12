@@ -12,6 +12,15 @@ const handleMainMenu = async (ctx, language, isRegistered, isAdmin) => {
               text: language === "uz" ? messagesUz.sendMes : messagesRu.sendMes,
             },
           ],
+          [
+            {
+              text: language === "uz" ? messagesUz.sendSMS : messagesRu.sendSMS,
+            },
+            {
+              text:
+                language === "uz" ? messagesUz.verifySMS : messagesRu.verifySMS,
+            },
+          ],
         ],
         resize_keyboard: true,
         one_time_keyboard: true,

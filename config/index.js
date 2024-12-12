@@ -7,6 +7,7 @@ const config = {
   botUrl: process.env.URL_BOT,
   PG_PASSWORD: process.env.PG_PASSWORD,
   PG_DATABASE: process.env.PG_DATABASE,
+  BILLING_URL:process.env.BILLING_URL
 };
 
 export default config;

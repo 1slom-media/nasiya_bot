@@ -17,6 +17,8 @@ import userInfoWizard from "./functions/loginScene.js";
 import adminMessageWizard from "./functions/sendMessage.js";
 import client2 from "./db/nasiya.js";
 import { cretaeApplicationsGrafik, sendApplicationGrafik } from "./functions/allgood.js";
+import resendOtpWizard from "./functions/sendSMS.js";
+import verifyOtpWizard from "./functions/verifySMS.js";
 
 // db connect
 client
@@ -27,12 +29,16 @@ client2
   .connect()
   .then(() => console.log("Nsiya Ulanish muvaffaqiyatli"))
   .catch((err) => console.error("Nasiya Xato yuz berdi:", err));
-setInterval(() => {
-  cretaeApplicationsGrafik();
-  sendApplicationGrafik();
-}, 3*60 * 1000);
+
+// sendGrafik
+// setInterval(() => {
+//   cretaeApplicationsGrafik();
+//   sendApplicationGrafik();
+// }, 3*60 * 1000);
+
+// newBot
 const bot = new Telegraf(config.token);
-const stage = new Scenes.Stage([userInfoWizard, adminMessageWizard]);
+const stage = new Scenes.Stage([userInfoWizard, adminMessageWizard,resendOtpWizard,verifyOtpWizard]);
 bot.use(
   session({
     defaultSession: () => ({
@@ -93,19 +99,35 @@ const changeLanguageCommand = async (ctx) => {
   await handleMainMenu(ctx, selectedLanguage, isRegistered, isAdmined);
 };
 
+
+// metods
+// verifySMS
+bot.hears([messagesUz.verifySMS, messagesRu.verifySMS], async (ctx) => {
+  ctx.scene.enter("verify_otp_wizard");
+});
+
+// sendSms
+bot.hears([messagesUz.sendSMS, messagesRu.sendSMS], async (ctx) => {
+  ctx.scene.enter("resent_otp_wizard");
+});
+
+// register
 bot.hears([messagesUz.register, messagesRu.register], async (ctx) => {
   ctx.scene.enter("user_info_wizard");
 });
 
+// faq
 bot.hears([messagesUz.faq, messagesRu.faq], async (ctx) => {
   const language = getLanguage(ctx);
   await faqMenu(ctx, language);
 });
 
+// rasilka
 bot.hears([messagesUz.sendMes, messagesRu.sendMes], async (ctx) => {
   ctx.scene.enter("admin_message_wizard");
 });
 
+// back button
 bot.hears([messagesUz.back, messagesRu.back], async (ctx) => {
   const userId = ctx.chat.id;
   const language = getLanguage(ctx);
@@ -114,6 +136,8 @@ bot.hears([messagesUz.back, messagesRu.back], async (ctx) => {
   await handleMainMenu(ctx, language, isRegistered, isAdmined);
 });
 
+
+// callbackQueries
 bot.on("callback_query", async (ctx) => {
   const callbackData = ctx.callbackQuery.data;
   const language = getLanguage(ctx);
@@ -144,14 +168,14 @@ bot.on("message", async (ctx) => {
 
     if (
       ctx.message.photo &&
-      messageText.includes(`@${botUsername}`) &&
-      !messageText.includes("/lang")
+      messageText?.includes(`@${botUsername}`) &&
+      !messageText?.includes("/lang")
     ) {
       await requestPhoto(ctx, messageText, botUsername);
     } else if (
       messageText &&
-      messageText.includes(`@${botUsername}`) &&
-      !messageText.includes("/lang")
+      messageText?.includes(`@${botUsername}`) &&
+      !messageText?.includes("/lang")
     ) {
       await requestNoPhoto(ctx, messageText, botUsername);
     } else {
