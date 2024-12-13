@@ -255,4 +255,7 @@ VALUES
 
 
 -- insert merchants
+INSERT INTO merchants_bot (merchant_id, merchant_name, group_id) 
+VALUES
+(374, 'MCHJ  "OMADLI SHUKRONA" MCHJ', -4551479181);
 

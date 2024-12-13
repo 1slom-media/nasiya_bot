@@ -64,6 +64,7 @@ async function sendApplicationGrafik() {
             ba.merchant_id,
 	          ba.merchant_name,  
 	          ba.branch_name,  
+	          ba.provider_name,  
             ba.created_at,
             ba.schedule_file, 
             mu.name AS operator_name
@@ -106,6 +107,7 @@ async function sendApplicationGrafik() {
   row.merchant_name ? row.merchant_name : row.branch_name
   } 
 👨🏻‍💻<b>Оператор: </b>${row.operator_name}
+🏦<b>Банк:</b>${row.provider_name ? row.provider_name : 'DAVRBANK'}
 Подробно можете увидеть график платежей: https://pdf.allgoodnasiya.uz/${
 row.schedule_file
 }
