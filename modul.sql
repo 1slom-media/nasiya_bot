@@ -51,6 +51,12 @@ CREATE TABLE bot_applications(
     CONSTRAINT unique_application_id UNIQUE (application_id)
 );
 
+ALTER TABLE bot_applications
+ADD COLUMN created_at TIMESTAMP;
+
+ALTER TABLE bot_applications
+ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;
+
 
 -- insert admin
 INSERT INTO

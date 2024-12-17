@@ -2,11 +2,12 @@ import { bot } from "../bot.js";
 import config from "../config/index.js";
 import client from "../db/db.js";
 import client2 from "../db/nasiya.js";
+import { extractDate } from "../utils/extractDate.js";
 import getFormattedDate from "../utils/formatedDate.js";
 
 // `applications` jadvalidan yangi yozuvlarni o'qish va `bot_applications`ga qo'shish
 async function cretaeApplicationsGrafik() {
-  let lastCheckedTime = "2024-12-10 17:02:31.438484";
+  let lastCheckedTime = "2024-12-15 17:02:31.438484";
   try {
     console.log("Allgood_db ma'lumotlar bazasiga ulanish muvaffaqiyatli");
 
@@ -103,14 +104,12 @@ async function sendApplicationGrafik() {
 Вы успешно оформили рассрочку клиенту.✅🎉
 🆔<b>Заявка №: ${row.backend_application_id}</b>
 🕒<b>Дата оформления: ${getFormattedDate(row.created_at)}</b>
-📌<b>Мерчант: </b>${
-  row.merchant_name ? row.merchant_name : row.branch_name
-  } 
+📌<b>Мерчант: </b>${row.merchant_name ? row.merchant_name : row.branch_name} 
 👨🏻‍💻<b>Оператор: </b>${row.operator_name}
-🏦<b>Банк:</b>${row.provider_name ? row.provider_name : 'DAVRBANK'}
+🏦<b>Банк:</b>${row.provider_name ? row.provider_name : "DAVRBANK"}
 Подробно можете увидеть график платежей: https://pdf.allgoodnasiya.uz/${
-row.schedule_file
-}
+            row.schedule_file
+          }
           `;
 
           await bot.telegram.sendMessage(config.channelId, message, {
@@ -161,4 +160,77 @@ row.schedule_file
   }
 }
 
-export { cretaeApplicationsGrafik, sendApplicationGrafik };
+async function sendYesterdayStatics() {
+  const queryBotApplications = `
+    SELECT id, application_id, status, created_at
+    FROM public.bot_applications
+    WHERE created_at::date = CURRENT_DATE - INTERVAL '1 day';
+  `;
+
+  try {
+    const botApplicationsResult = await client.query(queryBotApplications);
+
+    if (botApplicationsResult.rows.length === 0) {
+      console.log("Kechagi kun uchun ma'lumot topilmadi.");
+      return;
+    }
+
+    let totalPriceSum = 0;
+    let contractPriceSum = 0;
+    const totalApplications = botApplicationsResult.rows.length;
+    let date;
+    for (const row of botApplicationsResult.rows) {
+      const applicationId = row.application_id;
+      date = new Date(row.created_at);
+      const queryApplications = `
+        SELECT total_sum, contract_price
+        FROM public.applications
+        WHERE id = $1;
+      `;
+
+      const applicationsResult = await client2.query(queryApplications, [
+        applicationId,
+      ]);
+
+      if (applicationsResult.rows.length > 0) {
+        let { total_sum, contract_price } = applicationsResult.rows[0];
+
+        // Tiyinlardan so‘mga aylantirish kerak bo‘lsa
+        total_sum = parseFloat(total_sum) / 100 || 0;
+        contract_price = parseFloat(contract_price) / 100 || 0;
+
+        totalPriceSum += total_sum;
+        contractPriceSum += contract_price;
+      }
+    }
+
+    // Formatlash: Summalarni ikki o‘nlik formatga aylantirish
+    const totalPriceFormatted = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(totalPriceSum);
+
+    const contractPriceFormatted = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(contractPriceSum);
+    const message = `
+<b>Статистика за ${extractDate(date)} день: </b>
+- Общее количество оформленных заявок: <b>${totalApplications}</b>
+- 💸Общая сумма оформленных рассрочки: <b>${totalPriceFormatted}</b>
+- 💵Общая сумма оформленных товаров: <b>${contractPriceFormatted}</b>
+    `;
+
+    await bot.telegram.sendMessage(config.channelId, message, {
+      parse_mode: "HTML",
+    });
+  } catch (error) {
+    console.error("Xatolik yuz berdi:", error);
+  }
+}
+
+export {
+  cretaeApplicationsGrafik,
+  sendApplicationGrafik,
+  sendYesterdayStatics,
+};
