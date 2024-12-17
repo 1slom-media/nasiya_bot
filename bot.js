@@ -16,9 +16,13 @@ import { handleCompleteRequest } from "./functions/completeRequest.js";
 import userInfoWizard from "./functions/loginScene.js";
 import adminMessageWizard from "./functions/sendMessage.js";
 import client2 from "./db/nasiya.js";
-import { cretaeApplicationsGrafik, sendApplicationGrafik } from "./functions/allgood.js";
+import {
+  cretaeApplicationsGrafik,
+  sendApplicationGrafik,
+} from "./functions/allgood.js";
 import resendOtpWizard from "./functions/sendSMS.js";
 import verifyOtpWizard from "./functions/verifySMS.js";
+import { scheduleJob } from "./utils/shudele.js";
 
 // db connect
 client
@@ -34,11 +38,17 @@ client2
 setInterval(() => {
   cretaeApplicationsGrafik();
   sendApplicationGrafik();
-}, 2*60 * 1000);
+}, 2 * 60 * 1000);
+scheduleJob();
 
 // newBot
 const bot = new Telegraf(config.token);
-const stage = new Scenes.Stage([userInfoWizard, adminMessageWizard,resendOtpWizard,verifyOtpWizard]);
+const stage = new Scenes.Stage([
+  userInfoWizard,
+  adminMessageWizard,
+  resendOtpWizard,
+  verifyOtpWizard,
+]);
 bot.use(
   session({
     defaultSession: () => ({
@@ -99,7 +109,6 @@ const changeLanguageCommand = async (ctx) => {
   await handleMainMenu(ctx, selectedLanguage, isRegistered, isAdmined);
 };
 
-
 // metods
 // verifySMS
 bot.hears([messagesUz.verifySMS, messagesRu.verifySMS], async (ctx) => {
@@ -135,7 +144,6 @@ bot.hears([messagesUz.back, messagesRu.back], async (ctx) => {
   const isAdmined = await isAdmin(userId);
   await handleMainMenu(ctx, language, isRegistered, isAdmined);
 });
-
 
 // callbackQueries
 bot.on("callback_query", async (ctx) => {
