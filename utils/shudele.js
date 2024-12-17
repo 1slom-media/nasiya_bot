@@ -1,4 +1,4 @@
-import { sendYesterdayStatics } from "../functions/allgood";
+import { sendYesterdayStatics } from "../functions/allgood.js";
 
 const msInDay = 24 * 60 * 60 * 1000; // Kun davomiyligi (millisekundalar)
 const targetTime = new Date();
