@@ -338,7 +338,7 @@ async function sendLimit() {
           // Holatni 'send'ga o'zgartirish
           await client.query(
             `UPDATE limit_applications SET status = $1,"limit"=$3,anor_limit=$4,davr_limit=$5,provider=$6 WHERE id = $2`,
-            ["send", app.id, limit_amount, davr_amount, anor_amount, provider]
+            ["send", app.id, limit_amount, anor_amount,davr_amount, provider]
           );
         }
       }

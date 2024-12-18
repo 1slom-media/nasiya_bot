@@ -63,7 +63,7 @@ CREATE TABLE limit_applications(
     status text default 'new',
     limit bigint default 0,
     anor_limit bigint default 0,
-    davr_limit bigint default 0,
+    davr_limit varchar,
     provider text,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_application_id UNIQUE (application_id)
