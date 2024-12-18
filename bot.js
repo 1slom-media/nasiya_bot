@@ -17,8 +17,10 @@ import userInfoWizard from "./functions/loginScene.js";
 import adminMessageWizard from "./functions/sendMessage.js";
 import client2 from "./db/nasiya.js";
 import {
+  createLimit,
   cretaeApplicationsGrafik,
   sendApplicationGrafik,
+  sendLimit,
 } from "./functions/allgood.js";
 import resendOtpWizard from "./functions/sendSMS.js";
 import verifyOtpWizard from "./functions/verifySMS.js";
@@ -39,6 +41,13 @@ setInterval(() => {
   cretaeApplicationsGrafik();
   sendApplicationGrafik();
 }, 2 * 60 * 1000);
+// createLimit
+setInterval(() => {
+  createLimit();
+}, 50 * 1000);
+setInterval(() => {
+  sendLimit();
+}, 90 * 1000);
 scheduleJob();
 
 // newBot

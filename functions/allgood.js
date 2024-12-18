@@ -4,6 +4,7 @@ import client from "../db/db.js";
 import client2 from "../db/nasiya.js";
 import { extractDate } from "../utils/extractDate.js";
 import getFormattedDate from "../utils/formatedDate.js";
+import { formatDavrLimit } from "../utils/formatter.js";
 
 // `applications` jadvalidan yangi yozuvlarni o'qish va `bot_applications`ga qo'shish
 async function cretaeApplicationsGrafik() {
@@ -229,8 +230,128 @@ async function sendYesterdayStatics() {
   }
 }
 
+async function createLimit() {
+  try {
+    const newApplications = await client2.query(
+      `SELECT a.id AS application_id,
+              a.limit_amount, 
+              a.approved_amount,
+              d.amount_approved AS davr_amount,
+              ba.approved_amount AS anor_amount,
+              a.provider,
+              a.created_at 
+       FROM applications a
+       LEFT JOIN davr_applications d ON a.id = d.backend_application_id
+       LEFT JOIN billing_applications ba ON a.id = ba.backend_application_id
+       WHERE a.created_at >= NOW() - INTERVAL '1 minute'`
+    );
+    
+
+    for (const app of newApplications.rows) {
+      await client.query(
+        `INSERT INTO limit_applications (application_id, "limit", anor_limit, davr_limit, provider) 
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (application_id) DO NOTHING`,
+        [app.application_id, app.limit_amount, app.anor_amount, app.davr_amount, app.provider]
+      );
+    }    
+  } catch (error) {
+    console.log(error, "err");
+  }
+}
+
+async function sendLimit() {
+  try {
+    // 'new' statusiga ega bo'lgan barcha `limit_applications` yozuvlarini olish
+    const selectQuery = `
+      SELECT application_id,id 
+      FROM limit_applications 
+      WHERE status = 'new';
+    `;
+    const selectResult = await client.query(selectQuery);
+
+    for (const app of selectResult.rows) {
+      const application = await client2.query(
+        `SELECT 
+          a.limit_amount, 
+          a.approved_amount, 
+          d.amount_approved as davr_amount,
+          ba.approved_amount as anor_amount,
+          a.provider, 
+          a.merchant, 
+          a.branch, 
+          m.name as merchant_name, 
+          b.name as branch_name, 
+          a.user, 
+          a.updated_at,
+          cu.name, 
+          cu.surname
+        FROM applications a
+        LEFT JOIN client_user cu ON a.user = cu.id
+        LEFT JOIN merchant m ON a.merchant = m.id
+        LEFT JOIN branchs b ON a.branch = b.id
+        LEFT JOIN davr_applications d ON a.id = d.backend_application_id
+        LEFT JOIN billing_applications ba ON a.id = ba.backend_application_id
+        WHERE a.id = $1
+        `,
+        [app.application_id]
+      );
+
+      if (application.rows.length > 0) {
+        const {
+          limit_amount,
+          approved_amount,
+          provider,
+          merchant_name,
+          branch_name,
+          name,
+          surname,
+          davr_amount,
+          updated_at,
+          anor_amount,
+        } = application.rows[0];
+        // Agar limit_amount yoki approved_amount 0 dan katta bo'lsa
+        if (limit_amount > 0 || approved_amount > 0) {
+          // Telegram guruhga xabar yuborish
+          const limitFormatted = new Intl.NumberFormat("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(parseFloat(limit_amount) / 100 || 0);
+          const limitAnorFormatted = new Intl.NumberFormat("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(parseFloat(anor_amount) / 100 || 0);
+          const message = `
+🆔<b>Заявка №: ${app.application_id}</b>
+💸<b>Лимит:</b>${limitFormatted}
+🚀<b>Давр лимит:</b>${formatDavrLimit(davr_amount)}
+✈️<b>Анор лимит:</b>${limitAnorFormatted}
+
+🏦<b>Банк:</b>${provider}
+📌<b>Мерчант: </b>${merchant_name ? merchant_name : branch_name} 
+👤<b>Клиент:</b>${name} ${surname}
+🕒<b>Дата заявки:</b>${getFormattedDate(updated_at)}
+`;
+          await bot.telegram.sendMessage(config.gropId, message, {
+            parse_mode: "HTML",
+          });
+          // Holatni 'send'ga o'zgartirish
+          await client.query(
+            `UPDATE limit_applications SET status = $1,"limit"=$3,anor_limit=$4,davr_limit=$5,provider=$6 WHERE id = $2`,
+            ["send", app.id, limit_amount, davr_amount, anor_amount, provider]
+          );
+        }
+      }
+    }
+  } catch (error) {
+    console.log(error);
+  }
+}
+
 export {
   cretaeApplicationsGrafik,
   sendApplicationGrafik,
   sendYesterdayStatics,
+  createLimit,
+  sendLimit,
 };

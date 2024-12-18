@@ -57,6 +57,17 @@ ADD COLUMN created_at TIMESTAMP;
 ALTER TABLE bot_applications
 ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;
 
+CREATE TABLE limit_applications(
+    id serial primary key,
+    application_id int,
+    status text default 'new',
+    limit bigint default 0,
+    anor_limit bigint default 0,
+    davr_limit bigint default 0,
+    provider text,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_application_id UNIQUE (application_id)
+);
 
 -- insert admin
 INSERT INTO
