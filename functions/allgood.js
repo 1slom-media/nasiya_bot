@@ -5,6 +5,7 @@ import client2 from "../db/nasiya.js";
 import { extractDate } from "../utils/extractDate.js";
 import getFormattedDate from "../utils/formatedDate.js";
 import { formatDavrLimit } from "../utils/formatter.js";
+import { grafikTable, limitTable } from "../utils/sheets.js";
 
 // `applications` jadvalidan yangi yozuvlarni o'qish va `bot_applications`ga qo'shish
 async function cretaeApplicationsGrafik() {
@@ -100,18 +101,31 @@ async function sendApplicationGrafik() {
         if (result.length > 0) {
           const row = result[0];
           // messageni channelga yuborish
+          const merchant = row.merchant_name
+            ? row.merchant_name
+            : row.branch_name;
+          const bank = row.provider_name ? row.provider_name : "DAVRBANK";
+          const link = `https://pdf.allgoodnasiya.uz/${row.schedule_file}`;
+          // message yasash
           const message = `
             📣<b>ПОЗДРАВЛЯЕМ ВАС !</b>📣
 Вы успешно оформили рассрочку клиенту.✅🎉
 🆔<b>Заявка №: ${row.backend_application_id}</b>
 🕒<b>Дата оформления: ${getFormattedDate(row.created_at)}</b>
-📌<b>Мерчант: </b>${row.merchant_name ? row.merchant_name : row.branch_name} 
+📌<b>Мерчант: </b>${merchant} 
 👨🏻‍💻<b>Оператор: </b>${row.operator_name}
 🏦<b>Банк:</b>${row.provider_name ? row.provider_name : "DAVRBANK"}
-Подробно можете увидеть график платежей: https://pdf.allgoodnasiya.uz/${
-            row.schedule_file
-          }
+Подробно можете увидеть график платежей: ${link}
           `;
+          // excelga qo`shish
+          await grafikTable(
+            row.backend_application_id,
+            merchant,
+            row.operator_name,
+            bank,
+            row.created_at,
+            link
+          );
 
           await bot.telegram.sendMessage(config.channelId, message, {
             parse_mode: "HTML",
@@ -245,16 +259,21 @@ async function createLimit() {
        LEFT JOIN billing_applications ba ON a.id = ba.backend_application_id
        WHERE a.created_at >= NOW() - INTERVAL '1 minute'`
     );
-    
 
     for (const app of newApplications.rows) {
       await client.query(
         `INSERT INTO limit_applications (application_id, "limit", anor_limit, davr_limit, provider) 
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (application_id) DO NOTHING`,
-        [app.application_id, app.limit_amount, app.anor_amount, app.davr_amount, app.provider]
+        [
+          app.application_id,
+          app.limit_amount,
+          app.anor_amount,
+          app.davr_amount,
+          app.provider,
+        ]
       );
-    }    
+    }
   } catch (error) {
     console.log(error, "err");
   }
@@ -262,6 +281,7 @@ async function createLimit() {
 
 async function sendLimit() {
   try {
+    console.log("send limit");
     // 'new' statusiga ega bo'lgan barcha `limit_applications` yozuvlarini olish
     const selectQuery = `
       SELECT application_id,id 
@@ -269,6 +289,7 @@ async function sendLimit() {
       WHERE status = 'new';
     `;
     const selectResult = await client.query(selectQuery);
+    let messages = [];
 
     for (const app of selectResult.rows) {
       const application = await client2.query(
@@ -309,6 +330,7 @@ async function sendLimit() {
           davr_amount,
           updated_at,
           anor_amount,
+          merchant,
         } = application.rows[0];
         // Agar limit_amount yoki approved_amount 0 dan katta bo'lsa
         if (limit_amount > 0 || approved_amount > 0) {
@@ -321,6 +343,7 @@ async function sendLimit() {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           }).format(parseFloat(anor_amount) / 100 || 0);
+          const merchantName = merchant_name ? merchant_name : branch_name;
           const message = `
 🆔<b>Заявка №: ${app.application_id}</b>
 💸<b>Лимит:</b>${limitFormatted}
@@ -328,19 +351,59 @@ async function sendLimit() {
 ✈️<b>Анор лимит:</b>${limitAnorFormatted}
 
 🏦<b>Банк:</b>${provider}
-📌<b>Мерчант: </b>${merchant_name ? merchant_name : branch_name} 
+📌<b>Мерчант: </b>${merchantName}
 👤<b>Клиент:</b>${name} ${surname}
 🕒<b>Дата заявки:</b>${getFormattedDate(updated_at)}
 `;
+          // xabarni eccelga saqlash
+          await limitTable(
+            app.application_id,
+            limitFormatted,
+            limitAnorFormatted,
+            formatDavrLimit(davr_amount),
+            provider,
+            merchantName,
+            `${name} ${surname}`,
+            updated_at
+          );
+          // xabarni supportga yuborish
           await bot.telegram.sendMessage(config.gropId, message, {
             parse_mode: "HTML",
           });
+
+          // `merchants_bot` jadvalidan guruhni olish
+          const groupQuery = `
+            SELECT group_id
+            FROM public.merchants_bot
+            WHERE merchant_id = $1;
+          `;
+          const groupResult = await client.query(groupQuery, [merchant]);
+          // groupIdlarni olish
+          if (groupResult.rows.length > 0) {
+            const chatId = groupResult.rows[0].group_id;
+            messages.push({ chatId, message });
+          }
+          console.log("grdan otdik");
           // Holatni 'send'ga o'zgartirish
           await client.query(
             `UPDATE limit_applications SET status = $1,"limit"=$3,anor_limit=$4,davr_limit=$5,provider=$6 WHERE id = $2`,
-            ["send", app.id, limit_amount, anor_amount,davr_amount, provider]
+            ["send", app.id, limit_amount, anor_amount, davr_amount, provider]
           );
+          console.log("update");
+          
         }
+      }
+    }
+
+    // Barcha xabarlarni yuborish
+    for (const msg of messages) {
+      try {
+        // Guruhga xabar yuborish
+        await bot.telegram.sendMessage(msg.chatId, msg.message, {
+          parse_mode: "HTML",
+        });
+      } catch (err) {
+        continue;
       }
     }
   } catch (error) {
