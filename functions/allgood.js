@@ -176,14 +176,20 @@ async function sendApplicationGrafik() {
 }
 
 async function sendYesterdayStatics() {
+  // kechagi kun aplictionsni olish
   const queryBotApplications = `
     SELECT id, application_id, status, created_at
     FROM public.bot_applications
     WHERE created_at::date = CURRENT_DATE - INTERVAL '1 day';
   `;
-
+  const queryLimitApplications = `
+    SELECT "limit", anor_limit, davr_limit,status, created_at
+    FROM public.limit_applications
+    WHERE created_at::date = CURRENT_DATE - INTERVAL '1 day' AND status='send';
+  `;
   try {
     const botApplicationsResult = await client.query(queryBotApplications);
+    const limitApplicationsResult = await client.query(queryLimitApplications);
 
     if (botApplicationsResult.rows.length === 0) {
       console.log("Kechagi kun uchun ma'lumot topilmadi.");
@@ -218,7 +224,21 @@ async function sendYesterdayStatics() {
         contractPriceSum += contract_price;
       }
     }
+    const totalLimitCount = limitApplicationsResult.rows.length;
+    let totalLimit = 0;
+    let anorLimit = 0;
+    let davrLimit = 0;
+    for (const row of limitApplicationsResult.rows) {
+      let { limit, anor_limit, davr_limit } = row;
+      // Tiyinlardan so‘mga aylantirish kerak bo‘lsa
+      limit = parseFloat(limit) / 100 || 0;
+      anor_limit = parseFloat(anor_limit) / 100 || 0;
+      davr_limit = parseFloat(davr_limit) || 0;
 
+      totalLimit += limit;
+      anorLimit += anor_limit;
+      davrLimit += Number(davr_limit);
+    }
     // Formatlash: Summalarni ikki o‘nlik formatga aylantirish
     const totalPriceFormatted = new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 2,
@@ -229,11 +249,24 @@ async function sendYesterdayStatics() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(contractPriceSum);
+    // limitlarni formatlash
+    const totalLimitFormatted = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(totalLimit);
+    const anorLimitFormatted = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(anorLimit);
+
     const message = `
 <b>Статистика за ${extractDate(date)} день: </b>
 - Общее количество оформленных заявок: <b>${totalApplications}</b>
 - 💸Общая сумма оформленных рассрочки: <b>${totalPriceFormatted}</b>
 - 💵Общая сумма оформленных товаров: <b>${contractPriceFormatted}</b>
+
+- Общее количество лимит: <b>${totalLimitCount}</b>
+💸<b>Общая лимит:</b>${totalLimitFormatted}
     `;
 
     await bot.telegram.sendMessage(config.channelId, message, {
@@ -390,7 +423,6 @@ async function sendLimit() {
             ["send", app.id, limit_amount, anor_amount, davr_amount, provider]
           );
           console.log("update");
-          
         }
       }
     }
