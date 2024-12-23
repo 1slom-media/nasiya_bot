@@ -102,4 +102,24 @@ async function limitTable(
   }
 }
 
-export { grafikTable,limitTable };
+async function updateSheetStatus(applicationId, status) {
+  await accessGoogleSheet1();
+  const sheet = doc1.sheetsByIndex[0];
+
+  // Hamma qatorlarni olish
+  const rows = await sheet.getRows();
+
+  // ID orqali qatorni topish
+  const existingRow = rows.find((row) => row.ID === applicationId.toString());
+
+  if (existingRow) {
+    // Statusni yangilash
+    existingRow.Status = status;
+    await existingRow.save();
+  } else {
+    console.log(`ID: ${applicationId} bo'lgan qator topilmadi.`);
+  }
+}
+
+
+export { grafikTable,limitTable,updateSheetStatus};

@@ -5,7 +5,7 @@ import client2 from "../db/nasiya.js";
 import { extractDate } from "../utils/extractDate.js";
 import getFormattedDate from "../utils/formatedDate.js";
 import { formatDavrLimit } from "../utils/formatter.js";
-import { grafikTable, limitTable } from "../utils/sheets.js";
+import { grafikTable, limitTable, updateSheetStatus } from "../utils/sheets.js";
 
 // `applications` jadvalidan yangi yozuvlarni o'qish va `bot_applications`ga qo'shish
 async function cretaeApplicationsGrafik() {
@@ -443,10 +443,38 @@ async function sendLimit() {
   }
 }
 
+async function updateStatusLimit() {
+  const queryLimitApplications = `
+    SELECT application_id,"limit", anor_limit, davr_limit,status, created_at
+    FROM public.limit_applications
+    WHERE created_at::date = CURRENT_DATE - INTERVAL '1 day' AND status='send';
+  `;
+  const limitApplicationsResult = await client.query(queryLimitApplications);
+  if (limitApplicationsResult.length > 0) {
+    for (const row of limitApplicationsResult.rows) {
+      const applicationId = row.application_id;
+      // applications tabledan olish
+      const queryApplications = `
+      SELECT id, status
+      FROM public.applications
+      WHERE id = $1;
+    `;
+      const applicationsResult = await client2.query(queryApplications, [
+        applicationId,
+      ]);
+      if (applicationsResult.rows.length > 0) {
+        let { id, status } = applicationsResult.rows[0];
+        await updateSheetStatus(id, status);
+      }
+    }
+  }
+}
+
 export {
   cretaeApplicationsGrafik,
   sendApplicationGrafik,
   sendYesterdayStatics,
   createLimit,
   sendLimit,
+  updateStatusLimit
 };
