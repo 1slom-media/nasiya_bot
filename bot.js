@@ -25,6 +25,7 @@ import {
 import resendOtpWizard from "./functions/sendSMS.js";
 import verifyOtpWizard from "./functions/verifySMS.js";
 import { scheduleJob } from "./utils/shudele.js";
+import { saveGroupInfo } from "./utils/sheets.js";
 
 // db connect
 client
@@ -178,11 +179,17 @@ bot.on("callback_query", async (ctx) => {
 // main function
 bot.on("message", async (ctx) => {
   const chatType = ctx.chat.type;
+  const chatId = ctx.chat.id;
+  const chatTitle = ctx.chat.title || "Noma'lum guruh";
   // Faqat guruh va superguruhlar uchun ishlash
   if (chatType === "group" || chatType === "supergroup") {
     const messageText = ctx.message.text || ctx.message.caption; // Xabar matni yoki caption
     const botUsername = ctx.botInfo.username; // Bot username
-
+    try {
+      await saveGroupInfo(chatId, chatTitle);
+    } catch (error) {
+      console.error("Google Sheetsga yozishda xato:", error);
+    }
     if (
       ctx.message.photo &&
       messageText?.includes(`@${botUsername}`) &&

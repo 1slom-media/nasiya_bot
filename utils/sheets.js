@@ -91,9 +91,9 @@ async function limitTable(
     // Add new row if requestId is new
     await sheet.addRow({
       ID: applicationId,
-      Limit:limit,
-      Anor_Limit:anor_limit,
-      Davr_Limit:davr_limit,
+      Limit: limit,
+      Anor_Limit: anor_limit,
+      Davr_Limit: davr_limit,
       Bank: bank,
       Merchant: merchant,
       Client: user,
@@ -121,5 +121,41 @@ async function updateSheetStatus(applicationId, status) {
   }
 }
 
+// groups uchun
+const doc2 = new GoogleSpreadsheet(
+  "1bcYMZZ5uMgj7ayVTfdwt4gV-MbgFenFRMbyhqUgg-CY"
+);
 
-export { grafikTable,limitTable,updateSheetStatus};
+async function accessGoogleSheet2() {
+  try {
+    await doc2.useServiceAccountAuth({
+      client_email: config.client_email,
+      private_key: config.private_key.replace(/\\n/g, "\n"),
+    });
+    await doc2.loadInfo();
+  } catch (error) {
+    console.error("Google Sheets autentifikatsiya xatosi:", error);
+    throw error;
+  }
+}
+
+async function saveGroupInfo(chatId, chatTitle) {
+  await accessGoogleSheet2();
+  const sheet = doc2.sheetsByIndex[0];
+
+  const rows = await sheet.getRows();
+  const existingRow = rows.find((row) => row.ChatID === chatId.toString());
+
+  if (existingRow) {
+    console.log(`Guruh allaqachon saqlangan: ${chatTitle} (${chatId})`);
+  } else {
+    await sheet.addRow({
+      ChatID: chatId,
+      GroupName: chatTitle,
+      AddedAt: new Date().toISOString(),
+    });
+    console.log(`Yangi guruh saqlandi: ${chatTitle} (${chatId})`);
+  }
+}
+
+export { grafikTable, limitTable, updateSheetStatus,saveGroupInfo };
