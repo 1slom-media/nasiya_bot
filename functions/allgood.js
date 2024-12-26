@@ -177,6 +177,11 @@ async function sendApplicationGrafik() {
 
 async function sendYesterdayStatics() {
   // kechagi kun aplictionsni olish
+  const queryApplicationsDb = `
+    SELECT id, status, created_at
+    FROM applications
+    WHERE created_at::date = CURRENT_DATE - INTERVAL '1 day';
+  `;
   const queryBotApplications = `
     SELECT id, application_id, status, created_at
     FROM public.bot_applications
@@ -189,13 +194,14 @@ async function sendYesterdayStatics() {
   `;
   try {
     const botApplicationsResult = await client.query(queryBotApplications);
+    const applicationsResult = await client2.query(queryApplicationsDb);
     const limitApplicationsResult = await client.query(queryLimitApplications);
 
     if (botApplicationsResult.rows.length === 0) {
       console.log("Kechagi kun uchun ma'lumot topilmadi.");
       return;
     }
-
+    // bot applicationsdan kerakli ma`lumotlarni olish
     let totalPriceSum = 0;
     let contractPriceSum = 0;
     const totalApplications = botApplicationsResult.rows.length;
@@ -224,6 +230,9 @@ async function sendYesterdayStatics() {
         contractPriceSum += contract_price;
       }
     }
+
+    // limitApplicationsdan ma`lumotlarni olish
+    const totalApp = applicationsResult.rows.length;
     const totalLimitCount = limitApplicationsResult.rows.length;
     let totalLimit = 0;
     let anorLimit = 0;
@@ -239,12 +248,12 @@ async function sendYesterdayStatics() {
       anorLimit += anor_limit;
       davrLimit += Number(davr_limit);
     }
+
     // Formatlash: Summalarni ikki o‘nlik formatga aylantirish
     const totalPriceFormatted = new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(totalPriceSum);
-
     const contractPriceFormatted = new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -258,15 +267,31 @@ async function sendYesterdayStatics() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(anorLimit);
+    // foizni hisoblash
+    const percent =
+      parseFloat(Number(totalApplications) / Number(totalLimitCount)) * 100;
+    const percentFormat = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(percent);
+    const saldo = Number(totalLimit) - Number(totalPriceSum);
+    const saldoFormat = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(parseFloat(saldo));
 
+    // message
     const message = `
 <b>Статистика за ${extractDate(date)} день: </b>
-- Общее количество оформленных заявок: <b>${totalApplications}</b>
-- 💸Общая сумма оформленных рассрочки: <b>${totalPriceFormatted}</b>
-- 💵Общая сумма оформленных товаров: <b>${contractPriceFormatted}</b>
+- Количество заявок: <b>${totalApp}</b>
+- Количество лимитов: <b>${totalLimitCount}</b>
+- Количество оформленных заявок: <b>${totalApplications}</b>
+- % оформленных заявок: <b>${percentFormat}</b>
 
-- Общее количество лимит: <b>${totalLimitCount}</b>
-💸<b>Общая лимит:</b>${totalLimitFormatted}
+- Выданный лимит: <b>${totalLimitFormatted}</b>
+- Сумма оформленных товаров: <b>${contractPriceFormatted}</b>
+- Сумма оформленных рассрочек: <b>${totalPriceFormatted}</b>
+- Остаточный лимит: <b>${saldoFormat}</b>
     `;
 
     await bot.telegram.sendMessage(config.channelId, message, {
