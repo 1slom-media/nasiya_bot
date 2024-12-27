@@ -56,7 +56,22 @@ async function sendApplicationGrafik() {
 
       // Har bir yangi yozuvni ishlash
       for (const row of selectResult.rows) {
+        const queryApplications = `
+        SELECT total_sum, contract_price
+        FROM public.applications
+        WHERE id = $1;
+      `;
         const applicationId = row.application_id;
+        const applicationsResult = await client2.query(queryApplications, [
+          applicationId,
+        ]);
+        let totalPrice = 0;
+        let contractPrice = 0;
+        if (applicationsResult.rows.length) {
+          let { total_sum, contract_price } = applicationsResult.rows[0];
+          totalPrice = parseFloat(total_sum) / 100 || 0;
+          contractPrice = parseFloat(contract_price) / 100 || 0;
+        }
         let result = [];
         // `billing_applications` va `merchant`, `merchant_user` jadvallarini qo'shish
         const query = `
@@ -100,6 +115,14 @@ async function sendApplicationGrafik() {
 
         if (result.length > 0) {
           const row = result[0];
+          const totalPriceFormatted = new Intl.NumberFormat("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(totalPrice);
+          const contractPriceFormatted = new Intl.NumberFormat("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(contractPrice);
           // messageni channelga yuborish
           const merchant = row.merchant_name
             ? row.merchant_name
@@ -110,12 +133,16 @@ async function sendApplicationGrafik() {
           const message = `
             📣<b>ПОЗДРАВЛЯЕМ ВАС !</b>📣
 Вы успешно оформили рассрочку клиенту.✅🎉
-🆔<b>Заявка №: ${row.backend_application_id}</b>
-🕒<b>Дата оформления: ${getFormattedDate(row.created_at)}</b>
-📌<b>Мерчант: </b>${merchant} 
-👨🏻‍💻<b>Оператор: </b>${row.operator_name}
-🏦<b>Банк:</b>${row.provider_name ? row.provider_name : "DAVRBANK"}
-Подробно можете увидеть график платежей: ${link}
+
+<b>Заявка №: ${row.backend_application_id}</b>
+<b>Дата оформления: ${getFormattedDate(row.created_at)}</b>
+<b>Мерчант: </b>${merchant} 
+<b>Оператор: </b>${row.operator_name}
+<b>Банк:</b>${row.provider_name ? row.provider_name : "DAVRBANK"}
+<b>Сумма товара:</b>${contractPriceFormatted}
+<b>Сумма рассрочки:</b>${totalPriceFormatted}
+
+График платежей: ${link}
           `;
           // excelga qo`shish
           await grafikTable(
@@ -501,5 +528,5 @@ export {
   sendYesterdayStatics,
   createLimit,
   sendLimit,
-  updateStatusLimit
+  updateStatusLimit,
 };

@@ -113,9 +113,15 @@ async function updateSheetStatus(applicationId, status) {
   const existingRow = rows.find((row) => row.ID === applicationId.toString());
 
   if (existingRow) {
-    // Statusni yangilash
-    existingRow.Status = status;
-    await existingRow.save();
+    // Statusni faqat bo'sh bo'lsa yangilash
+    if (!existingRow.Status || existingRow.Status.trim() === "") {
+      existingRow.Status = status;
+      await existingRow.save();
+    } else {
+      console.log(
+        `ID: ${applicationId} bo'lgan qatorning Status katagi allaqachon to'ldirilgan.`
+      );
+    }
   } else {
     console.log(`ID: ${applicationId} bo'lgan qator topilmadi.`);
   }
@@ -158,4 +164,4 @@ async function saveGroupInfo(chatId, chatTitle) {
   }
 }
 
-export { grafikTable, limitTable, updateSheetStatus,saveGroupInfo };
+export { grafikTable, limitTable, updateSheetStatus, saveGroupInfo };
