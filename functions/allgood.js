@@ -302,6 +302,11 @@ async function sendYesterdayStatics() {
       maximumFractionDigits: 2,
     }).format(percent);
     const saldo = Number(totalLimit) - Number(totalPriceSum);
+    const percentLimit=parseFloat(Number(totalPriceSum) / Number(totalLimit)) * 100;
+    const percentLimitFormat = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(parseFloat(percentLimit));
     const saldoFormat = new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -319,6 +324,7 @@ async function sendYesterdayStatics() {
 - Сумма оформленных товаров: <b>${contractPriceFormatted}</b>
 - Сумма оформленных рассрочек: <b>${totalPriceFormatted}</b>
 - Остаточный лимит: <b>${saldoFormat}</b>
+- % лимита оформленных заявок: <b>${percentLimitFormat}</b>
     `;
 
     await bot.telegram.sendMessage(config.channelId, message, {
