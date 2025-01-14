@@ -5,7 +5,7 @@ import client2 from "../db/nasiya.js";
 import { extractDate } from "../utils/extractDate.js";
 import getFormattedDate from "../utils/formatedDate.js";
 import { formatDavrLimit } from "../utils/formatter.js";
-import { grafikTable, limitTable, updateSheetStatus } from "../utils/sheets.js";
+import { grafikTable, limitTable } from "../utils/sheets.js";
 
 // `applications` jadvalidan yangi yozuvlarni o'qish va `bot_applications`ga qo'shish
 async function cretaeApplicationsGrafik() {
@@ -302,7 +302,8 @@ async function sendYesterdayStatics() {
       maximumFractionDigits: 2,
     }).format(percent);
     const saldo = Number(totalLimit) - Number(totalPriceSum);
-    const percentLimit=parseFloat(Number(totalPriceSum) / Number(totalLimit)) * 100;
+    const percentLimit =
+      parseFloat(Number(totalPriceSum) / Number(totalLimit)) * 100;
     const percentLimitFormat = new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -373,18 +374,22 @@ async function createLimit() {
 async function sendLimit() {
   try {
     console.log("send limit");
-    // 'new' statusiga ega bo'lgan barcha `limit_applications` yozuvlarini olish
     const selectQuery = `
-      SELECT application_id,id 
-      FROM limit_applications 
-      WHERE status = 'new';
-    `;
+    SELECT application_id, id 
+    FROM limit_applications 
+    WHERE status = 'new'
+    FOR UPDATE SKIP LOCKED;
+  `;
     const selectResult = await client.query(selectQuery);
     let messages = [];
-
     for (const app of selectResult.rows) {
-      const application = await client2.query(
-        `SELECT 
+      await client.query(
+        `UPDATE limit_applications SET status = 'processing' WHERE id = $1`,
+        [app.id]
+      );
+      try {
+        const application = await client2.query(
+          `SELECT 
           a.limit_amount, 
           a.approved_amount, 
           d.amount_approved as davr_amount,
@@ -406,36 +411,36 @@ async function sendLimit() {
         LEFT JOIN billing_applications ba ON a.id = ba.backend_application_id
         WHERE a.id = $1
         `,
-        [app.application_id]
-      );
+          [app.application_id]
+        );
 
-      if (application.rows.length > 0) {
-        const {
-          limit_amount,
-          approved_amount,
-          provider,
-          merchant_name,
-          branch_name,
-          name,
-          surname,
-          davr_amount,
-          updated_at,
-          anor_amount,
-          merchant,
-        } = application.rows[0];
-        // Agar limit_amount yoki approved_amount 0 dan katta bo'lsa
-        if (limit_amount > 0 || approved_amount > 0) {
-          // Telegram guruhga xabar yuborish
-          const limitFormatted = new Intl.NumberFormat("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }).format(parseFloat(limit_amount) / 100 || 0);
-          const limitAnorFormatted = new Intl.NumberFormat("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }).format(parseFloat(anor_amount) / 100 || 0);
-          const merchantName = merchant_name ? merchant_name : branch_name;
-          const message = `
+        if (application.rows.length > 0) {
+          const {
+            limit_amount,
+            approved_amount,
+            provider,
+            merchant_name,
+            branch_name,
+            name,
+            surname,
+            davr_amount,
+            updated_at,
+            anor_amount,
+            merchant,
+          } = application.rows[0];
+          // Agar limit_amount yoki approved_amount 0 dan katta bo'lsa
+          if (limit_amount > 0 || approved_amount > 0) {
+            // Telegram guruhga xabar yuborish
+            const limitFormatted = new Intl.NumberFormat("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(parseFloat(limit_amount) / 100 || 0);
+            const limitAnorFormatted = new Intl.NumberFormat("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(parseFloat(anor_amount) / 100 || 0);
+            const merchantName = merchant_name ? merchant_name : branch_name;
+            const message = `
 🆔<b>Заявка №: ${app.application_id}</b>
 💸<b>Лимит:</b>${limitFormatted}
 🚀<b>Давр лимит:</b>${formatDavrLimit(davr_amount)}
@@ -446,42 +451,49 @@ async function sendLimit() {
 👤<b>Клиент:</b>${name} ${surname}
 🕒<b>Дата заявки:</b>${getFormattedDate(updated_at)}
 `;
-          // xabarni eccelga saqlash
-          await limitTable(
-            app.application_id,
-            limitFormatted,
-            limitAnorFormatted,
-            formatDavrLimit(davr_amount),
-            provider,
-            merchantName,
-            `${name} ${surname}`,
-            updated_at
-          );
-          // xabarni supportga yuborish
-          await bot.telegram.sendMessage(config.gropId, message, {
-            parse_mode: "HTML",
-          });
+            // xabarni eccelga saqlash
+            await limitTable(
+              app.application_id,
+              limitFormatted,
+              limitAnorFormatted,
+              formatDavrLimit(davr_amount),
+              provider,
+              merchantName,
+              `${name} ${surname}`,
+              updated_at
+            );
+            // xabarni supportga yuborish
+            await bot.telegram.sendMessage(config.gropId, message, {
+              parse_mode: "HTML",
+            });
 
-          // `merchants_bot` jadvalidan guruhni olish
-          const groupQuery = `
+            // `merchants_bot` jadvalidan guruhni olish
+            const groupQuery = `
             SELECT group_id
             FROM public.merchants_bot
             WHERE merchant_id = $1;
           `;
-          const groupResult = await client.query(groupQuery, [merchant]);
-          // groupIdlarni olish
-          if (groupResult.rows.length > 0) {
-            const chatId = groupResult.rows[0].group_id;
-            messages.push({ chatId, message });
+            const groupResult = await client.query(groupQuery, [merchant]);
+            // groupIdlarni olish
+            if (groupResult.rows.length > 0) {
+              const chatId = groupResult.rows[0].group_id;
+              messages.push({ chatId, message });
+            }
+            console.log("grdan otdik");
+            // Holatni 'send'ga o'zgartirish
+            await client.query(
+              `UPDATE limit_applications SET status = $1,"limit"=$3,anor_limit=$4,davr_limit=$5,provider=$6 WHERE id = $2`,
+              ['send', app.id, limit_amount, anor_amount, davr_amount, provider]
+            );
+
+            console.log("update");
           }
-          console.log("grdan otdik");
-          // Holatni 'send'ga o'zgartirish
-          await client.query(
-            `UPDATE limit_applications SET status = $1,"limit"=$3,anor_limit=$4,davr_limit=$5,provider=$6 WHERE id = $2`,
-            ["send", app.id, limit_amount, anor_amount, davr_amount, provider]
-          );
-          console.log("update");
         }
+      } catch (error) {
+        await client.query(
+          `UPDATE limit_applications SET status = 'new' WHERE id = $1`,
+          [app.id]
+        );
       }
     }
 
@@ -501,32 +513,32 @@ async function sendLimit() {
   }
 }
 
-async function updateStatusLimit() {
-  const queryLimitApplications = `
-    SELECT application_id,"limit", anor_limit, davr_limit,status, created_at
-    FROM public.limit_applications
-    WHERE created_at::date = CURRENT_DATE - INTERVAL '1 day' AND status='send';
-  `;
-  const limitApplicationsResult = await client.query(queryLimitApplications);
-  if (limitApplicationsResult.length > 0) {
-    for (const row of limitApplicationsResult.rows) {
-      const applicationId = row.application_id;
-      // applications tabledan olish
-      const queryApplications = `
-      SELECT id, status
-      FROM public.applications
-      WHERE id = $1;
-    `;
-      const applicationsResult = await client2.query(queryApplications, [
-        applicationId,
-      ]);
-      if (applicationsResult.rows.length > 0) {
-        let { id, status } = applicationsResult.rows[0];
-        await updateSheetStatus(id, status);
-      }
-    }
-  }
-}
+// async function updateStatusLimit() {
+//   const queryLimitApplications = `
+//     SELECT application_id,"limit", anor_limit, davr_limit,status, created_at
+//     FROM public.limit_applications
+//     WHERE created_at::date = CURRENT_DATE - INTERVAL '1 day' AND status='send';
+//   `;
+//   const limitApplicationsResult = await client.query(queryLimitApplications);
+//   if (limitApplicationsResult.length > 0) {
+//     for (const row of limitApplicationsResult.rows) {
+//       const applicationId = row.application_id;
+//       // applications tabledan olish
+//       const queryApplications = `
+//       SELECT id, status
+//       FROM public.applications
+//       WHERE id = $1;
+//     `;
+//       const applicationsResult = await client2.query(queryApplications, [
+//         applicationId,
+//       ]);
+//       if (applicationsResult.rows.length > 0) {
+//         let { id, status } = applicationsResult.rows[0];
+//         await updateSheetStatus(id, status);
+//       }
+//     }
+//   }
+// }
 
 export {
   cretaeApplicationsGrafik,
@@ -534,5 +546,4 @@ export {
   sendYesterdayStatics,
   createLimit,
   sendLimit,
-  updateStatusLimit,
 };

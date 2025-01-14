@@ -1,4 +1,4 @@
-import { sendYesterdayStatics, updateStatusLimit } from "../functions/allgood.js";
+import { sendYesterdayStatics} from "../functions/allgood.js";
 
 const msInDay = 24 * 60 * 60 * 1000; // Kun davomiyligi (millisekundalar)
 const targetTime = new Date();
@@ -16,10 +16,10 @@ function scheduleJob() {
 
   setTimeout(async () => {
     await sendYesterdayStatics(); // Funksiyani chaqirish
-    await updateStatusLimit(); // updateStatusLimit funksiyasini chaqirish
+    // await updateStatusLimit();
     setInterval(async () => {
       await sendYesterdayStatics();
-      await updateStatusLimit();
+      // await updateStatusLimit();
     }, msInDay); // Keyin har 24 soatda qayta ishga tushurish
   }, delay);
 }
