@@ -42,10 +42,11 @@ setInterval(() => {
   cretaeApplicationsGrafik();
   sendApplicationGrafik();
 }, 2 * 60 * 1000);
+
 // createLimit
 setInterval(() => {
   createLimit();
-}, 50 * 1000);
+}, 45 * 1000);
 setInterval(() => {
   sendLimit();
 }, 90 * 1000);

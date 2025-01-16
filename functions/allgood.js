@@ -11,8 +11,6 @@ import { grafikTable, limitTable } from "../utils/sheets.js";
 async function cretaeApplicationsGrafik() {
   let lastCheckedTime = "2024-12-15 17:02:31.438484";
   try {
-    console.log("Allgood_db ma'lumotlar bazasiga ulanish muvaffaqiyatli");
-
     // Faqat yangi yozuvlarni o'qish (lastCheckedTime qiymatidan keyin)
     const query = `
       SELECT id, status, created_at
@@ -30,7 +28,6 @@ async function cretaeApplicationsGrafik() {
           ON CONFLICT (application_id) DO NOTHING;
         `;
         await client.query(insertQuery, [row.id]);
-        console.log(`Yozuv qo'shildi: ID=${row.id}`);
       }
     } else {
       console.log("Yangi yozuvlar topilmadi.");
@@ -377,16 +374,11 @@ async function sendLimit() {
     const selectQuery = `
     SELECT application_id, id 
     FROM limit_applications 
-    WHERE status = 'new'
-    FOR UPDATE SKIP LOCKED;
+    WHERE status = 'new';
   `;
     const selectResult = await client.query(selectQuery);
     let messages = [];
     for (const app of selectResult.rows) {
-      await client.query(
-        `UPDATE limit_applications SET status = 'processing' WHERE id = $1`,
-        [app.id]
-      );
       try {
         const application = await client2.query(
           `SELECT 
@@ -435,11 +427,14 @@ async function sendLimit() {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             }).format(parseFloat(limit_amount) / 100 || 0);
+
             const limitAnorFormatted = new Intl.NumberFormat("en-US", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             }).format(parseFloat(anor_amount) / 100 || 0);
+
             const merchantName = merchant_name ? merchant_name : branch_name;
+
             const message = `
 🆔<b>Заявка №: ${app.application_id}</b>
 💸<b>Лимит:</b>${limitFormatted}
@@ -451,6 +446,13 @@ async function sendLimit() {
 👤<b>Клиент:</b>${name} ${surname}
 🕒<b>Дата заявки:</b>${getFormattedDate(updated_at)}
 `;
+
+            // Holatni 'send'ga o'zgartirish
+            await client.query(
+              `UPDATE limit_applications SET status = $1,"limit"=$3,anor_limit=$4,davr_limit=$5,provider=$6 WHERE id = $2`,
+              ["send", app.id, limit_amount, anor_amount, davr_amount, provider]
+            );
+
             // xabarni eccelga saqlash
             await limitTable(
               app.application_id,
@@ -462,6 +464,7 @@ async function sendLimit() {
               `${name} ${surname}`,
               updated_at
             );
+
             // xabarni supportga yuborish
             await bot.telegram.sendMessage(config.gropId, message, {
               parse_mode: "HTML",
@@ -479,21 +482,11 @@ async function sendLimit() {
               const chatId = groupResult.rows[0].group_id;
               messages.push({ chatId, message });
             }
-            console.log("grdan otdik");
-            // Holatni 'send'ga o'zgartirish
-            await client.query(
-              `UPDATE limit_applications SET status = $1,"limit"=$3,anor_limit=$4,davr_limit=$5,provider=$6 WHERE id = $2`,
-              ['send', app.id, limit_amount, anor_amount, davr_amount, provider]
-            );
-
-            console.log("update");
+            console.log("update", app);
           }
         }
       } catch (error) {
-        await client.query(
-          `UPDATE limit_applications SET status = 'new' WHERE id = $1`,
-          [app.id]
-        );
+        console.log(error.message);
       }
     }
 
@@ -513,6 +506,7 @@ async function sendLimit() {
   }
 }
 
+// --------------------------------------------------------------------------------------------
 // async function updateStatusLimit() {
 //   const queryLimitApplications = `
 //     SELECT application_id,"limit", anor_limit, davr_limit,status, created_at
