@@ -258,19 +258,27 @@ async function sendYesterdayStatics() {
     // limitApplicationsdan ma`lumotlarni olish
     const totalApp = applicationsResult.rows.length;
     const totalLimitCount = limitApplicationsResult.rows.length;
+    const uniqueLimits = new Set();
     let totalLimit = 0;
     let anorLimit = 0;
     let davrLimit = 0;
     for (const row of limitApplicationsResult.rows) {
-      let { limit, anor_limit, davr_limit } = row;
-      // Tiyinlardan so‘mga aylantirish kerak bo‘lsa
+      let { limit, anor_limit, davr_limit, user } = row;
+
+      // Tiyinlardan so‘mga aylantirish
       limit = parseFloat(limit) / 100 || 0;
       anor_limit = parseFloat(anor_limit) / 100 || 0;
       davr_limit = parseFloat(davr_limit) || 0;
+      // `limit` va `user` ni tekshirish uchun noyob kombinatsiya yaratamiz
+      const key = `${limit}-${user}`;
 
-      totalLimit += limit;
-      anorLimit += anor_limit;
-      davrLimit += Number(davr_limit);
+      if (!uniqueLimits.has(key)) {
+        uniqueLimits.add(key); // Agar oldin mavjud bo‘lmasa, qo‘shamiz
+
+        totalLimit += limit;
+        anorLimit += anor_limit;
+        davrLimit += Number(davr_limit);
+      }
     }
 
     // Formatlash: Summalarni ikki o‘nlik formatga aylantirish
@@ -342,17 +350,18 @@ async function createLimit() {
               d.amount_approved AS davr_amount,
               ba.approved_amount AS anor_amount,
               a.provider,
+              a."user",
               a.created_at 
        FROM applications a
        LEFT JOIN davr_applications d ON a.id = d.backend_application_id
        LEFT JOIN billing_applications ba ON a.id = ba.backend_application_id
-       WHERE a.created_at >= NOW() - INTERVAL '1 minute'`
+       WHERE a.created_at >= NOW() - INTERVAL '12 hour'`
     );
 
     for (const app of newApplications.rows) {
       await client.query(
-        `INSERT INTO limit_applications (application_id, "limit", anor_limit, davr_limit, provider) 
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO limit_applications (application_id, "limit", anor_limit, davr_limit, provider,"user") 
+         VALUES ($1, $2, $3, $4, $5,$6)
          ON CONFLICT (application_id) DO NOTHING`,
         [
           app.application_id,
@@ -360,6 +369,7 @@ async function createLimit() {
           app.anor_amount,
           app.davr_amount,
           app.provider,
+          app.user,
         ]
       );
     }

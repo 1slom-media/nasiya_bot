@@ -69,6 +69,9 @@ CREATE TABLE limit_applications(
     CONSTRAINT unique_application_id UNIQUE (application_id)
 );
 
+ALTER TABLE limit_applications 
+ADD COLUMN "user" text DEFAULT '0' NOT NULL;
+
 -- insert admin
 INSERT INTO
     users(
