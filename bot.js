@@ -19,13 +19,20 @@ import client2 from "./db/nasiya.js";
 import {
   createLimit,
   cretaeApplicationsGrafik,
+  handleBackAction,
+  handleDrp1,
+  handleDrpAction,
+  handleStatusAction,
+  handleUserAction,
   sendApplicationGrafik,
   sendLimit,
 } from "./functions/allgood.js";
 import resendOtpWizard from "./functions/sendSMS.js";
 import verifyOtpWizard from "./functions/verifySMS.js";
 import { scheduleJob } from "./utils/shudele.js";
-import { saveGroupInfo } from "./utils/sheets.js";
+import {
+  saveGroupInfo,
+} from "./utils/sheets.js";
 
 // db connect
 client
@@ -37,19 +44,19 @@ client2
   .then(() => console.log("Nsiya Ulanish muvaffaqiyatli"))
   .catch((err) => console.error("Nasiya Xato yuz berdi:", err));
 
-// sendGrafik
+sendGrafik
 setInterval(() => {
   cretaeApplicationsGrafik();
   sendApplicationGrafik();
-}, 2 * 60 * 1000);
+}, 80 * 1000);
 
 // createLimit
 setInterval(() => {
   createLimit();
-}, 45 * 1000);
+}, 20 * 1000);
 setInterval(() => {
   sendLimit();
-}, 90 * 1000);
+}, 35 * 1000);
 scheduleJob();
 
 // newBot
@@ -75,6 +82,21 @@ const getLanguage = (ctx) => {
   const userId = ctx.from.id;
   return userLanguage[userId] || "uz"; // Default to Uzbek if no language is set
 };
+
+bot.action(/^(\w+)_(\d+)_(.+)$/, async (ctx) => {
+  const action = ctx.match[1];
+  if (action === "me") {
+    await handleUserAction(ctx);
+  } else if (action === "drp") {
+    await handleDrpAction(ctx);
+  } else if (action === "back") {
+    await handleBackAction(ctx);
+  } else if (action === "drp1") {
+    await handleDrp1(ctx);
+  } else {
+    await handleStatusAction(ctx);
+  }
+});
 
 // `/start` command
 bot.start(async (ctx) => {

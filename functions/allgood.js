@@ -1,3 +1,4 @@
+import { Markup } from "telegraf";
 import { bot } from "../bot.js";
 import config from "../config/index.js";
 import client from "../db/db.js";
@@ -5,7 +6,14 @@ import client2 from "../db/nasiya.js";
 import { extractDate } from "../utils/extractDate.js";
 import getFormattedDate from "../utils/formatedDate.js";
 import { formatDavrLimit } from "../utils/formatter.js";
-import { grafikTable, limitTable } from "../utils/sheets.js";
+import {
+  grafikTable,
+  limitTable,
+  updateSheetManager,
+  updateSheetPartner,
+  updateSheetStatus,
+} from "../utils/sheets.js";
+import { state } from "../utils/language.js";
 
 // `applications` jadvalidan yangi yozuvlarni o'qish va `bot_applications`ga qo'shish
 async function cretaeApplicationsGrafik() {
@@ -355,7 +363,7 @@ async function createLimit() {
        FROM applications a
        LEFT JOIN davr_applications d ON a.id = d.backend_application_id
        LEFT JOIN billing_applications ba ON a.id = ba.backend_application_id
-       WHERE a.created_at >= NOW() - INTERVAL '12 hour'`
+       WHERE a.created_at >= NOW() - INTERVAL '1 minute'`
     );
 
     for (const app of newApplications.rows) {
@@ -475,9 +483,19 @@ async function sendLimit() {
               updated_at
             );
 
+            const inlineKeyboard = Markup.inlineKeyboard([
+              [
+                {
+                  text: "взяль ",
+                  callback_data: `me_${app.application_id}_me`,
+                },
+              ],
+            ]);
+
             // xabarni supportga yuborish
             await bot.telegram.sendMessage(config.gropId, message, {
               parse_mode: "HTML",
+              reply_markup: inlineKeyboard.reply_markup,
             });
 
             // `merchants_bot` jadvalidan guruhni olish
@@ -516,33 +534,193 @@ async function sendLimit() {
   }
 }
 
-// --------------------------------------------------------------------------------------------
-// async function updateStatusLimit() {
-//   const queryLimitApplications = `
-//     SELECT application_id,"limit", anor_limit, davr_limit,status, created_at
-//     FROM public.limit_applications
-//     WHERE created_at::date = CURRENT_DATE - INTERVAL '1 day' AND status='send';
-//   `;
-//   const limitApplicationsResult = await client.query(queryLimitApplications);
-//   if (limitApplicationsResult.length > 0) {
-//     for (const row of limitApplicationsResult.rows) {
-//       const applicationId = row.application_id;
-//       // applications tabledan olish
-//       const queryApplications = `
-//       SELECT id, status
-//       FROM public.applications
-//       WHERE id = $1;
-//     `;
-//       const applicationsResult = await client2.query(queryApplications, [
-//         applicationId,
-//       ]);
-//       if (applicationsResult.rows.length > 0) {
-//         let { id, status } = applicationsResult.rows[0];
-//         await updateSheetStatus(id, status);
-//       }
-//     }
-//   }
-// }
+// status menu
+async function handleUserAction(ctx) {
+  const applicationId = ctx.match[2];
+  const messageId = ctx.update.callback_query.message.message_id;
+  const user =
+    ctx.update.callback_query.from.username ||
+    ctx.update.callback_query.from.first_name;
+
+  const inlineKeyboard = Markup.inlineKeyboard([
+    [
+      {
+        text: "Оформлено",
+        callback_data: `success_${applicationId}_${messageId}`,
+      },
+      {
+        text: "Ошибка банка",
+        callback_data: `bank_${applicationId}_${messageId}`,
+      },
+    ],
+    [
+      {
+        text: "Тест",
+        callback_data: `test_${applicationId}_${messageId}`,
+      },
+      {
+        text: "Задолженность",
+        callback_data: `debt_${applicationId}_${messageId}`,
+      },
+    ],
+    [
+      {
+        text: "Карта на 18/24",
+        callback_data: `card_${applicationId}_${messageId}`,
+      },
+      {
+        text: "Дубль",
+        callback_data: `two_${applicationId}_${messageId}`,
+      },
+    ],
+    [
+      {
+        text: "Дата оплаты не подходит",
+        callback_data: `datareject_${applicationId}_${messageId}`,
+      },
+    ],
+    [
+      {
+        text: "Недостаточно Лимита",
+        callback_data: `limit_${applicationId}_${messageId}`,
+      },
+    ],
+    [
+      {
+        text: "Клиент отказался",
+        callback_data: `reject_${applicationId}_${messageId}`,
+      },
+    ],
+    [
+      {
+        text: "Другой партнер",
+        callback_data: `drp_${applicationId}_${messageId}`,
+      },
+    ],
+  ]);
+
+  await ctx.reply(`@${user} Заявка принята.`, {
+    reply_to_message_id: messageId,
+    parse_mode: "HTML",
+  });
+  await ctx.reply(`Пожалуйста, выберите:`, {
+    reply_to_message_id: messageId,
+    parse_mode: "HTML",
+    reply_markup: inlineKeyboard.reply_markup,
+  });
+  await updateSheetManager(applicationId, user);
+}
+
+async function handleDrpAction(ctx) {
+  const applicationId = ctx.match[2];
+  // const messageId = ctx.update.callback_query.message.message_id;
+  const message_id = ctx.match[3];
+
+  const newInlineKeyboard = Markup.inlineKeyboard([
+    [
+      {
+        text: "Payme Nasiya",
+        callback_data: `drp1_${applicationId}_Payme Nasiy`,
+      },
+      { text: "Intend", callback_data: `drp1_${applicationId}_Intend` },
+      { text: "Uzum", callback_data: `drp1_${applicationId}_Uzum` },
+      { text: "Open", callback_data: `drp1_${applicationId}_Open` },
+      { text: "Alif", callback_data: `drp1_${applicationId}_Alif` },
+    ],
+    [{ text: "Назад", callback_data: `back_${applicationId}_${message_id}` }],
+  ]);
+
+  await ctx.answerCbQuery("Выберите новый вариант партнера.");
+  await ctx.editMessageText("Пожалуйста, выберите вариант:", {
+    reply_markup: newInlineKeyboard.reply_markup,
+  });
+}
+
+async function handleBackAction(ctx) {
+  const applicationId = ctx.match[2];
+  const message_id = ctx.match[3];
+
+  const inlineKeyboard = Markup.inlineKeyboard([
+    [
+      {
+        text: "Оформлено",
+        callback_data: `success_${applicationId}_${message_id}`,
+      },
+      {
+        text: "Ошибка банка",
+        callback_data: `bank_${applicationId}_${message_id}`,
+      },
+    ],
+    [
+      {
+        text: "Тест",
+        callback_data: `test_${applicationId}_${message_id}`,
+      },
+      {
+        text: "Задолженность",
+        callback_data: `debt_${applicationId}_${message_id}`,
+      },
+    ],
+    [
+      {
+        text: "Карта на 18/24",
+        callback_data: `card_${applicationId}_${message_id}`,
+      },
+      {
+        text: "Дубль",
+        callback_data: `two_${applicationId}_${message_id}`,
+      },
+    ],
+    [
+      {
+        text: "Дата оплаты не подходит",
+        callback_data: `datareject_${applicationId}_${message_id}`,
+      },
+    ],
+    [
+      {
+        text: "Недостаточно Лимита",
+        callback_data: `limit_${applicationId}_${message_id}`,
+      },
+    ],
+    [
+      {
+        text: "Клиент отказался",
+        callback_data: `reject_${applicationId}_${message_id}`,
+      },
+    ],
+    [
+      {
+        text: "Другой партнер",
+        callback_data: `drp_${applicationId}_${message_id}`,
+      },
+    ],
+  ]);
+
+  await ctx.editMessageText("Пожалуйста, выберите вариант:", {
+    reply_markup: inlineKeyboard.reply_markup,
+  });
+}
+
+async function handleDrp1(ctx) {
+  const applicationId = ctx.match[2];
+  const partnerName = ctx.match[3];
+  await updateSheetPartner(applicationId, partnerName);
+  await updateSheetStatus(applicationId, state.drp);
+  await ctx.editMessageText(
+    `Вы выбрали партнера для заявки ID ${applicationId}: ${partnerName}`
+  );
+}
+
+async function handleStatusAction(ctx) {
+  const status = ctx.match[1];
+  const applicationId = ctx.match[2];
+  const appStatus = state[status];
+  await updateSheetStatus(applicationId, appStatus);
+  await ctx.editMessageText(
+    `📌 Ariza ID: ${applicationId} | Holat: ${appStatus}`
+  );
+}
 
 export {
   cretaeApplicationsGrafik,
@@ -550,4 +728,9 @@ export {
   sendYesterdayStatics,
   createLimit,
   sendLimit,
+  handleUserAction,
+  handleDrpAction,
+  handleBackAction,
+  handleDrp1,
+  handleStatusAction,
 };

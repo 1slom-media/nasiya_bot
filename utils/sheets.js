@@ -126,6 +126,55 @@ async function updateSheetStatus(applicationId, status) {
     console.log(`ID: ${applicationId} bo'lgan qator topilmadi.`);
   }
 }
+async function updateSheetPartner(applicationId, partner) {
+  await accessGoogleSheet1();
+  const sheet = doc1.sheetsByIndex[0];
+
+  // Hamma qatorlarni olish
+  const rows = await sheet.getRows();
+
+  // ID orqali qatorni topish
+  const existingRow = rows.find((row) => row.ID === applicationId.toString());
+
+  if (existingRow) {
+    // Statusni faqat bo'sh bo'lsa yangilash
+    if (!existingRow.Partner || existingRow.Partner.trim() === "") {
+      existingRow.Partner = partner;
+      await existingRow.save();
+    } else {
+      console.log(
+        `ID: ${applicationId} bo'lgan qatorning Partner katagi allaqachon to'ldirilgan.`
+      );
+    }
+  } else {
+    console.log(`ID: ${applicationId} bo'lgan qator topilmadi.`);
+  }
+}
+
+async function updateSheetManager(applicationId, manager) {
+  await accessGoogleSheet1();
+  const sheet = doc1.sheetsByIndex[0];
+
+  // Hamma qatorlarni olish
+  const rows = await sheet.getRows();
+
+  // ID orqali qatorni topish
+  const existingRow = rows.find((row) => row.ID === applicationId.toString());
+
+  if (existingRow) {
+    // Statusni faqat bo'sh bo'lsa yangilash
+    if (!existingRow.Manager || existingRow.Manager.trim() === "") {
+      existingRow.Manager = manager;
+      await existingRow.save();
+    } else {
+      console.log(
+        `ID: ${applicationId} bo'lgan qatorning manager katagi allaqachon to'ldirilgan.`
+      );
+    }
+  } else {
+    console.log(`ID: ${applicationId} bo'lgan qator topilmadi.`);
+  }
+}
 
 // groups uchun
 const doc2 = new GoogleSpreadsheet(
@@ -164,4 +213,4 @@ async function saveGroupInfo(chatId, chatTitle) {
   }
 }
 
-export { grafikTable, limitTable, updateSheetStatus, saveGroupInfo };
+export { grafikTable, limitTable, updateSheetStatus, saveGroupInfo,updateSheetPartner,updateSheetManager };
