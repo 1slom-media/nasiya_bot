@@ -17,7 +17,7 @@ import { state } from "../utils/language.js";
 
 // `applications` jadvalidan yangi yozuvlarni o'qish va `bot_applications`ga qo'shish
 async function cretaeApplicationsGrafik() {
-  let lastCheckedTime = "2024-12-15 17:02:31.438484";
+  let lastCheckedTime = "2025-02-02 17:02:31.438484";
   try {
     // Faqat yangi yozuvlarni o'qish (lastCheckedTime qiymatidan keyin)
     const query = `
@@ -363,7 +363,7 @@ async function createLimit() {
        FROM applications a
        LEFT JOIN davr_applications d ON a.id = d.backend_application_id
        LEFT JOIN billing_applications ba ON a.id = ba.backend_application_id
-       WHERE a.created_at >= NOW() - INTERVAL '1 minute'`
+       WHERE a.created_at >= NOW() - INTERVAL '2 hour'`
     );
 
     for (const app of newApplications.rows) {
@@ -390,11 +390,14 @@ async function sendLimit() {
   try {
     console.log("send limit");
     const selectQuery = `
-    SELECT application_id, id 
-    FROM limit_applications 
-    WHERE status = 'new';
+    SELECT application_id, id,status 
+FROM limit_applications 
+WHERE status = 'new' 
+AND created_at::DATE = CURRENT_DATE;
   `;
     const selectResult = await client.query(selectQuery);
+    console.log(selectResult.rows, "srs");
+
     let messages = [];
     for (const app of selectResult.rows) {
       try {
@@ -466,8 +469,11 @@ async function sendLimit() {
 `;
 
             // Holatni 'send'ga o'zgartirish
-            await client.query(
-              `UPDATE limit_applications SET status = $1,"limit"=$3,anor_limit=$4,davr_limit=$5,provider=$6 WHERE id = $2`,
+            const updatedLimit = await client.query(
+              `UPDATE limit_applications 
+               SET status = $1, "limit" = $3, anor_limit = $4, davr_limit = $5, provider = $6 
+               WHERE id = $2 
+               RETURNING status;`,
               ["send", app.id, limit_amount, anor_amount, davr_amount, provider]
             );
 
@@ -511,6 +517,7 @@ async function sendLimit() {
               messages.push({ chatId, message });
             }
             console.log("update", app);
+            console.log("updated", `${updatedLimit.rows[0].status}`);
           }
         }
       } catch (error) {

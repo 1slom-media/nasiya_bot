@@ -44,7 +44,7 @@ client2
   .then(() => console.log("Nsiya Ulanish muvaffaqiyatli"))
   .catch((err) => console.error("Nasiya Xato yuz berdi:", err));
 
-sendGrafik
+//sendGrafik
 setInterval(() => {
   cretaeApplicationsGrafik();
   sendApplicationGrafik();
@@ -53,10 +53,10 @@ setInterval(() => {
 // createLimit
 setInterval(() => {
   createLimit();
-}, 20 * 1000);
+}, 25 * 1000);
 setInterval(() => {
   sendLimit();
-}, 35 * 1000);
+}, 45 * 1000);
 scheduleJob();
 
 // newBot
