@@ -213,4 +213,20 @@ async function saveGroupInfo(chatId, chatTitle) {
   }
 }
 
-export { grafikTable, limitTable, updateSheetStatus, saveGroupInfo,updateSheetPartner,updateSheetManager };
+async function updateGroupStatus(chatId) {
+  await accessGoogleSheet2(); // Google Sheet-ga ulanish
+  const sheet = doc2.sheetsByIndex[0]; // Google Sheets 1-varaqqa murojaat qilish
+  const rows = await sheet.getRows(); // Google Sheets-dagi barcha qatorlarni olish
+
+  const rowToUpdate = rows.find((row) => row.ChatID === chatId.toString());
+  if (rowToUpdate) {
+    rowToUpdate.Status = "Active";
+    await rowToUpdate.save();
+    console.log(`Google Sheets yangilandi: ${chatId}`);
+  } else {
+    console.log(`Google Sheets-da mos chatId topilmadi: ${chatId}`);
+  }
+}
+
+
+export { grafikTable, limitTable, updateSheetStatus, saveGroupInfo,updateSheetPartner,updateSheetManager,updateGroupStatus };

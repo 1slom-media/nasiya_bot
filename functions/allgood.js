@@ -396,7 +396,6 @@ WHERE status = 'new'
 AND created_at::DATE = CURRENT_DATE;
   `;
     const selectResult = await client.query(selectQuery);
-    console.log(selectResult.rows, "srs");
 
     let messages = [];
     for (const app of selectResult.rows) {
@@ -492,7 +491,7 @@ AND created_at::DATE = CURRENT_DATE;
             const inlineKeyboard = Markup.inlineKeyboard([
               [
                 {
-                  text: "взяль ",
+                  text: "Принять",
                   callback_data: `me_${app.application_id}_me`,
                 },
               ],

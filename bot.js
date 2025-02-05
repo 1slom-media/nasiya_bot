@@ -60,7 +60,7 @@ setInterval(() => {
 scheduleJob();
 
 // newBot
-const bot = new Telegraf(config.token);
+const bot = new Telegraf(config.token,{handlerTimeout:9_000_000});
 const stage = new Scenes.Stage([
   userInfoWizard,
   adminMessageWizard,

@@ -11,6 +11,33 @@ const getLanguage = (ctx) => {
   return userLanguage[userId] || "uz";
 };
 
+const sendMessagesInChunks = async (ctx, resGroups, chunkSize = 50, delay = 30000) => {
+  const groups = resGroups.rows;
+  let groupIndex = 0;
+
+  // Barcha guruhlarni chunkSize bo'yicha yuborish
+  while (groupIndex < groups.length) {
+    const currentChunk = groups.slice(groupIndex, groupIndex + chunkSize);
+    const promises = currentChunk.map(async (merchant) => {
+      const groupId = merchant.group_id;
+      try {
+        // Guruhga xabar yuborish
+        await ctx.telegram.sendMessage(groupId, ctx.wizard.state.text_send);
+        await client.query(updateQuery, [groupId]);
+      } catch (err) {
+        console.error(`Xabar yuborishda xatolik: ${groupId}`, err);
+      }
+    });
+
+    // Har bir guruhni yuborishdan keyin kutish va keyingisini yuborish
+    await Promise.all(promises);
+    groupIndex += chunkSize;
+    console.log(`Yuborish yakunlandi, ${groupIndex} ta guruhni yubordik. Keyin ${delay / 1000} soniya kutamiz...`);
+    await new Promise(resolve => setTimeout(resolve, delay)); // 30 sekund kutish
+  }
+};
+
+
 // 1. Foydalanuvchidan ismni olish
 const askMessage = (ctx) => {
   const language = getLanguage(ctx);
@@ -20,7 +47,6 @@ const askMessage = (ctx) => {
 
 // 2. Ma'lumotlarni saqlash
 const saveMessage = async (ctx) => {
-  ctx.wizard.state.text_send = ctx.message.text;
   const { text_send } = ctx.wizard.state;
   const chat = ctx.chat;
   const language = getLanguage(ctx);
@@ -32,25 +58,13 @@ const saveMessage = async (ctx) => {
     RETURNING *;
   `;
   const values = [chat?.first_name, text_send, chat.username];
-  const groupQuery = `SELECT * FROM merchants_bot;`;
 
   try {
-    const resGroups = await client.query(groupQuery);
+    // Guruhlarni olish
+    const resGroups = await client.query('SELECT * FROM merchants_bot;');
 
-    // Merchant guruhlariga xabar yuborish
-    for (const merchant of resGroups.rows) {
-      let groupId = merchant.group_id;
-
-      try {
-        // Guruhga xabar yuborish
-        await ctx.telegram.sendMessage(groupId, text_send);
-        console.log(`Xabar yuborildi: ${groupId}`);
-      } catch (err) {
-        // Agar bot guruhda bo'lmasa yoki admin bo'lmasa, xatolikni log qilib, siklni davom ettiradi
-        // Guruhda bot bo'lmasa yoki admin bo'lmasa davom etish
-        continue;
-      }
-    }
+    // Merchant guruhlariga xabar yuborish va guruhlar statusini yangilash
+    await sendMessagesInChunks(ctx, resGroups);
 
     // Foydalanuvchiga tasdiq xabari jo‘natish
     await client.query(query, values);
