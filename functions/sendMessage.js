@@ -11,10 +11,15 @@ const getLanguage = (ctx) => {
   return userLanguage[userId] || "uz";
 };
 
-const sendMessagesInChunks = async (ctx, resGroups, chunkSize = 50, delay = 30000) => {
+const sendMessagesInChunks = async (
+  ctx,
+  resGroups,
+  text_send,
+  chunkSize = 50,
+  delay = 30000
+) => {
   const groups = resGroups.rows;
   let groupIndex = 0;
-
   // Barcha guruhlarni chunkSize bo'yicha yuborish
   while (groupIndex < groups.length) {
     const currentChunk = groups.slice(groupIndex, groupIndex + chunkSize);
@@ -22,8 +27,7 @@ const sendMessagesInChunks = async (ctx, resGroups, chunkSize = 50, delay = 3000
       const groupId = merchant.group_id;
       try {
         // Guruhga xabar yuborish
-        await ctx.telegram.sendMessage(groupId, ctx.wizard.state.text_send);
-        await client.query(updateQuery, [groupId]);
+        await ctx.telegram.sendMessage(groupId, text_send);
       } catch (err) {
         console.error(`Xabar yuborishda xatolik: ${groupId}`, err);
       }
@@ -32,11 +36,14 @@ const sendMessagesInChunks = async (ctx, resGroups, chunkSize = 50, delay = 3000
     // Har bir guruhni yuborishdan keyin kutish va keyingisini yuborish
     await Promise.all(promises);
     groupIndex += chunkSize;
-    console.log(`Yuborish yakunlandi, ${groupIndex} ta guruhni yubordik. Keyin ${delay / 1000} soniya kutamiz...`);
-    await new Promise(resolve => setTimeout(resolve, delay)); // 30 sekund kutish
+    console.log(
+      `Yuborish yakunlandi, ${groupIndex} ta guruhni yubordik. Keyin ${
+        delay / 1000
+      } soniya kutamiz...`
+    );
+    await new Promise((resolve) => setTimeout(resolve, delay)); // 30 sekund kutish
   }
 };
-
 
 // 1. Foydalanuvchidan ismni olish
 const askMessage = (ctx) => {
@@ -47,6 +54,7 @@ const askMessage = (ctx) => {
 
 // 2. Ma'lumotlarni saqlash
 const saveMessage = async (ctx) => {
+  ctx.wizard.state.text_send = ctx.message.text;
   const { text_send } = ctx.wizard.state;
   const chat = ctx.chat;
   const language = getLanguage(ctx);
@@ -61,10 +69,10 @@ const saveMessage = async (ctx) => {
 
   try {
     // Guruhlarni olish
-    const resGroups = await client.query('SELECT * FROM merchants_bot;');
+    const resGroups = await client.query("SELECT * FROM merchants_bot;");
 
     // Merchant guruhlariga xabar yuborish va guruhlar statusini yangilash
-    await sendMessagesInChunks(ctx, resGroups);
+    await sendMessagesInChunks(ctx, resGroups, text_send);
 
     // Foydalanuvchiga tasdiq xabari jo‘natish
     await client.query(query, values);
@@ -82,7 +90,6 @@ const saveMessage = async (ctx) => {
 
   return ctx.scene.leave();
 };
-
 
 const adminMessageWizard = new WizardScene(
   "admin_message_wizard",
