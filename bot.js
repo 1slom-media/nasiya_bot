@@ -30,9 +30,8 @@ import {
 import resendOtpWizard from "./functions/sendSMS.js";
 import verifyOtpWizard from "./functions/verifySMS.js";
 import { scheduleJob } from "./utils/shudele.js";
-import {
-  saveGroupInfo,
-} from "./utils/sheets.js";
+import { saveGroupInfo } from "./utils/sheets.js";
+import addMerchantWizard from "./functions/addMerchant.js";
 
 // db connect
 client
@@ -60,12 +59,13 @@ setInterval(() => {
 scheduleJob();
 
 // newBot
-const bot = new Telegraf(config.token,{handlerTimeout:9_000_000});
+const bot = new Telegraf(config.token, { handlerTimeout: 9_000_000 });
 const stage = new Scenes.Stage([
   userInfoWizard,
   adminMessageWizard,
   resendOtpWizard,
   verifyOtpWizard,
+  addMerchantWizard
 ]);
 bot.use(
   session({
@@ -167,6 +167,11 @@ bot.hears([messagesUz.faq, messagesRu.faq], async (ctx) => {
 // rasilka
 bot.hears([messagesUz.sendMes, messagesRu.sendMes], async (ctx) => {
   ctx.scene.enter("admin_message_wizard");
+});
+
+// addMerchant
+bot.hears([messagesUz.merchant, messagesRu.merchant], async (ctx) => {
+  ctx.scene.enter("add_merchant_wizard");
 });
 
 // back button
