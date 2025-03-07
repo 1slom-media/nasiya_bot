@@ -402,26 +402,26 @@ AND created_at::DATE = CURRENT_DATE;
       try {
         const application = await client2.query(
           `SELECT 
-          a.limit_amount, 
-          a.approved_amount, 
-          d.amount_approved as davr_amount,
-          ba.approved_amount as anor_amount,
-          a.provider, 
-          a.merchant, 
-          a.branch, 
-          m.name as merchant_name, 
-          b.name as branch_name, 
-          a.user, 
-          a.updated_at,
-          cu.name, 
-          cu.surname
-        FROM applications a
-        LEFT JOIN client_user cu ON a.user = cu.id
-        LEFT JOIN merchant m ON a.merchant = m.id
-        LEFT JOIN branchs b ON a.branch = b.id
-        LEFT JOIN davr_applications d ON a.id = d.backend_application_id
-        LEFT JOIN billing_applications ba ON a.id = ba.backend_application_id
-        WHERE a.id = $1
+    a.limit_amount, 
+    a.approved_amount, 
+    d.amount_approved as davr_amount,
+    ba.approved_amount as anor_amount,
+    a.provider, 
+    COALESCE(a.merchant, b."merchantId") AS merchant,
+    a.branch, 
+    m.name as merchant_name, 
+    b.name as branch_name, 
+    a.user, 
+    a.updated_at,
+    cu.name, 
+    cu.surname
+FROM applications a
+LEFT JOIN client_user cu ON a.user = cu.id
+LEFT JOIN merchant m ON a.merchant = m.id
+LEFT JOIN branchs b ON a.branch = b.id
+LEFT JOIN davr_applications d ON a.id = d.backend_application_id
+LEFT JOIN billing_applications ba ON a.id = ba.backend_application_id
+WHERE a.id = $1;
         `,
           [app.application_id]
         );
