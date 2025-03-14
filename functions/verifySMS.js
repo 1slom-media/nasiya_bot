@@ -46,7 +46,6 @@ const saveMessage = async (ctx) => {
       }
     );
     const { data } = response;
-    console.log(data,"dt");
     
     if (data.success) {
       await ctx.reply(

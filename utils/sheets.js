@@ -76,8 +76,6 @@ async function limitTable(
 ) {
   await accessGoogleSheet1();
   const sheet = doc1.sheetsByIndex[0];
-  console.log(date,"d");
-  console.log(limit,'l',anor_limit,'a',davr_limit,'d');
   const rows = await sheet.getRows();
   const existingRow = rows.find((row) => row.ID === applicationId.toString());
 
@@ -115,12 +113,10 @@ async function updateSheetStatus(applicationId, status) {
       existingRow.Status = status;
       await existingRow.save();
     } else {
-      console.log(
-        `ID: ${applicationId} bo'lgan qatorning Status katagi allaqachon to'ldirilgan.`
-      );
+      return;
     }
   } else {
-    console.log(`ID: ${applicationId} bo'lgan qator topilmadi.`);
+    return;
   }
 }
 async function updateSheetPartner(applicationId, partner) {
@@ -139,12 +135,10 @@ async function updateSheetPartner(applicationId, partner) {
       existingRow.Partner = partner;
       await existingRow.save();
     } else {
-      console.log(
-        `ID: ${applicationId} bo'lgan qatorning Partner katagi allaqachon to'ldirilgan.`
-      );
+      return;
     }
   } else {
-    console.log(`ID: ${applicationId} bo'lgan qator topilmadi.`);
+    return;
   }
 }
 
@@ -164,12 +158,10 @@ async function updateSheetManager(applicationId, manager) {
       existingRow.Manager = manager;
       await existingRow.save();
     } else {
-      console.log(
-        `ID: ${applicationId} bo'lgan qatorning manager katagi allaqachon to'ldirilgan.`
-      );
+      return;
     }
   } else {
-    console.log(`ID: ${applicationId} bo'lgan qator topilmadi.`);
+    return;
   }
 }
 
@@ -196,7 +188,7 @@ async function updateSheetOver(
     existingRow.phone = phone;
     await existingRow.save();
   } else {
-    console.log(`ID: ${applicationId} bo'lgan qator topilmadi.`);
+    return;
   }
 }
 
@@ -235,7 +227,7 @@ async function limitGraphTable(
       "Период Рассрочки": period,
       "Сумма Товара": `'${product_price}`,
       "Сумма Рассрочки": `'${total_sum}`,
-      "Наценка (%)": percant,
+      "Наценка (%)": `${percant}%`,
     });
   }
 }
@@ -264,14 +256,14 @@ async function saveGroupInfo(chatId, chatTitle) {
   const existingRow = rows.find((row) => row.ChatID === chatId.toString());
 
   if (existingRow) {
-    console.log(`Guruh allaqachon saqlangan: ${chatTitle} (${chatId})`);
+    return;
   } else {
     await sheet.addRow({
       ChatID: chatId,
       GroupName: chatTitle,
       AddedAt: new Date().toISOString(),
     });
-    console.log(`Yangi guruh saqlandi: ${chatTitle} (${chatId})`);
+    return;
   }
 }
 
@@ -284,9 +276,9 @@ async function updateGroupStatus(chatId) {
   if (rowToUpdate) {
     rowToUpdate.Status = "Active";
     await rowToUpdate.save();
-    console.log(`Google Sheets yangilandi: ${chatId}`);
+    return;
   } else {
-    console.log(`Google Sheets-da mos chatId topilmadi: ${chatId}`);
+    return;
   }
 }
 

@@ -39,8 +39,6 @@ async function cretaeApplicationsGrafik() {
         `;
         await client.query(insertQuery, [row.id]);
       }
-    } else {
-      console.log("Yangi yozuvlar topilmadi.");
     }
     lastCheckedTime = new Date();
   } catch (error) {
@@ -97,10 +95,10 @@ GROUP BY a.id, cu.username;
           } = applicationsResult.rows[0];
           await client.query(
             `UPDATE limit_applications 
-             SET success = $1,product_price=$3,total_sum=$4
+             SET success = $1,product_price=$3,total_sum=$4,period=$5
              WHERE application_id = $2 
              RETURNING status;`,
-            [true, applicationId, contract_price, total_sum]
+            [true, applicationId, contract_price, total_sum,period]
           );
           await updateSheetOver(
             applicationId,
@@ -234,8 +232,6 @@ GROUP BY a.id, cu.username;
           continue;
         }
       }
-    } else {
-      console.log("Yangi yozuvlar topilmadi.");
     }
   } catch (error) {
     console.error("Bazaga so'rov yuborishda xatolik yuz berdi:", error);
@@ -265,7 +261,6 @@ async function sendYesterdayStatics() {
     const limitApplicationsResult = await client.query(queryLimitApplications);
 
     if (botApplicationsResult.rows.length === 0) {
-      console.log("Kechagi kun uchun ma'lumot topilmadi.");
       return;
     }
     // bot applicationsdan kerakli ma`lumotlarni olish
@@ -418,9 +413,7 @@ WHERE success = TRUE AND graph = FALSE;
       const productPrice = parseFloat(
         row.product_price_formatted.replace(",", ".")
       );
-      console.log(row.created_at, "cr");
-      console.log(totalSum, "ts");
-      console.log(productPrice, "ps");
+      console.log(row.fio,'fio');
       const percant =
         productPrice !== 0
           ? ((totalSum - productPrice) / productPrice) * 100
@@ -532,7 +525,8 @@ AND created_at::DATE = CURRENT_DATE;
     b.name as branch_name, 
     a.user, 
     a.period,
-    TO_CHAR(a.updated_at, 'DD/MM/YYYY') AS updated_at,
+    a.updated_at,
+    TO_CHAR(a.updated_at, 'DD/MM/YYYY') AS updated_at_format,
     CASE
         WHEN COALESCE(NULLIF(a.limit_amount::TEXT, '')::NUMERIC, 0) = 0 THEN '0,00'
         ELSE REPLACE(TO_CHAR(ROUND(COALESCE(NULLIF(a.limit_amount::TEXT, '')::NUMERIC, 0) / 100, 2), 'FM999999999.00'), '.', ',')
@@ -569,6 +563,7 @@ WHERE a.id = $1;
             surname,
             davr_amount,
             updated_at,
+            updated_at_format,
             anor_amount,
             merchant,
             limit_formated,
@@ -629,7 +624,7 @@ WHERE a.id = $1;
               provider,
               merchantName,
               `${name} ${surname}`,
-              updated_at
+              updated_at_format
             );
 
             const inlineKeyboard = Markup.inlineKeyboard([

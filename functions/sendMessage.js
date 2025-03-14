@@ -36,11 +36,6 @@ const sendMessagesInChunks = async (
     // Har bir guruhni yuborishdan keyin kutish va keyingisini yuborish
     await Promise.all(promises);
     groupIndex += chunkSize;
-    console.log(
-      `Yuborish yakunlandi, ${groupIndex} ta guruhni yubordik. Keyin ${
-        delay / 1000
-      } soniya kutamiz...`
-    );
     await new Promise((resolve) => setTimeout(resolve, delay)); // 30 sekund kutish
   }
 };
