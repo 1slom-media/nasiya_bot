@@ -464,7 +464,6 @@ async function createLimit() {
     d.amount_approved AS davr_amount,
     ba.approved_amount AS anor_amount,
     a.provider,
-    a.period,
     a."user",
     cu.username AS phone,
     CONCAT(cu.name, ' ', cu.surname) AS fio,
@@ -484,8 +483,8 @@ WHERE a.created_at >= NOW() - INTERVAL '6 hour';
 
     for (const app of newApplications.rows) {
       await client.query(
-        `INSERT INTO limit_applications (application_id, "limit", anor_limit, davr_limit, provider,"user",phone,merchant,branch,fio,period) 
-         VALUES ($1, $2, $3, $4, $5,$6,$7,$8,$9,$10,$11)
+        `INSERT INTO limit_applications (application_id, "limit", anor_limit, davr_limit, provider,"user",phone,merchant,branch,fio) 
+         VALUES ($1, $2, $3, $4, $5,$6,$7,$8,$9,$10)
          ON CONFLICT (application_id) DO NOTHING`,
         [
           app.application_id,
@@ -498,7 +497,6 @@ WHERE a.created_at >= NOW() - INTERVAL '6 hour';
           app.merchant_name,
           app.branch_name,
           app.fio,
-          app.period,
         ]
       );
     }
@@ -533,17 +531,18 @@ AND created_at::DATE = CURRENT_DATE;
     m.name as merchant_name, 
     b.name as branch_name, 
     a.user, 
+    a.period,
     TO_CHAR(a.updated_at, 'DD/MM/YYYY') AS updated_at,
     CASE
-        WHEN COALESCE(NULLIF(a.limit_amount::TEXT, '')::NUMERIC, 0) = 0 THEN '0'
+        WHEN COALESCE(NULLIF(a.limit_amount::TEXT, '')::NUMERIC, 0) = 0 THEN '0,00'
         ELSE REPLACE(TO_CHAR(ROUND(COALESCE(NULLIF(a.limit_amount::TEXT, '')::NUMERIC, 0) / 100, 2), 'FM999999999.00'), '.', ',')
     END AS limit_formated,
     CASE
-        WHEN COALESCE(NULLIF(d.amount_approved::TEXT, '')::NUMERIC, 0) = 0 THEN '0'
+        WHEN COALESCE(NULLIF(d.amount_approved::TEXT, '')::NUMERIC, 0) = 0 THEN '0,00'
         ELSE REPLACE(TO_CHAR(ROUND(COALESCE(NULLIF(d.amount_approved::TEXT, '')::NUMERIC, 0) / 100, 2), 'FM999999999.00'), '.', ',')
     END AS davr_formated,
     CASE
-        WHEN COALESCE(NULLIF(ba.approved_amount::TEXT, '')::NUMERIC, 0) = 0 THEN '0'
+        WHEN COALESCE(NULLIF(ba.approved_amount::TEXT, '')::NUMERIC, 0) = 0 THEN '0,00'
         ELSE REPLACE(TO_CHAR(ROUND(COALESCE(NULLIF(ba.approved_amount::TEXT, '')::NUMERIC, 0) / 100, 2), 'FM999999999.00'), '.', ',')
     END AS anor_formated,
     cu.name, 
@@ -574,7 +573,8 @@ WHERE a.id = $1;
             merchant,
             limit_formated,
             davr_formated,
-            anor_formated
+            anor_formated,
+            period,
           } = application.rows[0];
           // Agar limit_amount yoki approved_amount 0 dan katta bo'lsa
           if (limit_amount > 0 || approved_amount > 0) {
@@ -606,10 +606,18 @@ WHERE a.id = $1;
             // Holatni 'send'ga o'zgartirish
             const updatedLimit = await client.query(
               `UPDATE limit_applications 
-               SET status = $1, "limit" = $3, anor_limit = $4, davr_limit = $5, provider = $6 
+               SET status = $1, "limit" = $3, anor_limit = $4, davr_limit = $5, provider = $6,period=$7 
                WHERE id = $2 
                RETURNING status;`,
-              ["send", app.id, limit_amount, anor_amount, davr_amount, provider]
+              [
+                "send",
+                app.id,
+                limit_amount,
+                anor_amount,
+                davr_amount,
+                provider,
+                period,
+              ]
             );
 
             // xabarni eccelga saqlash
