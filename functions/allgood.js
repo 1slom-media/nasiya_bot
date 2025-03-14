@@ -8,8 +8,10 @@ import getFormattedDate from "../utils/formatedDate.js";
 import { formatDavrLimit } from "../utils/formatter.js";
 import {
   grafikTable,
+  limitGraphTable,
   limitTable,
   updateSheetManager,
+  updateSheetOver,
   updateSheetPartner,
   updateSheetStatus,
 } from "../utils/sheets.js";
@@ -17,7 +19,7 @@ import { state } from "../utils/language.js";
 
 // `applications` jadvalidan yangi yozuvlarni o'qish va `bot_applications`ga qo'shish
 async function cretaeApplicationsGrafik() {
-  let lastCheckedTime = "2025-02-02 17:02:31.438484";
+  let lastCheckedTime = "2025-03-12 10:02:31.438484";
   try {
     // Faqat yangi yozuvlarni o'qish (lastCheckedTime qiymatidan keyin)
     const query = `
@@ -62,9 +64,21 @@ async function sendApplicationGrafik() {
       // Har bir yangi yozuvni ishlash
       for (const row of selectResult.rows) {
         const queryApplications = `
-        SELECT total_sum, contract_price
-        FROM public.applications
-        WHERE id = $1;
+        SELECT 
+    a.total_sum,
+    a.contract_price,
+    a.period,
+    cu.username as phone,
+    STRING_AGG(p.name, ', ') AS product,
+    CASE
+        WHEN COALESCE(NULLIF(a.total_sum::TEXT, '')::NUMERIC, 0) = 0 THEN '0'
+        ELSE REPLACE(TO_CHAR(ROUND(COALESCE(NULLIF(a.total_sum::TEXT, '')::NUMERIC, 0) / 100, 2), 'FM999999999.00'), '.', ',')
+    END AS total_sum_formated
+FROM public.applications AS a
+LEFT JOIN public.client_user cu ON a."user" = cu.id
+LEFT JOIN public.products p ON a.id = p.application
+WHERE a.id = $1
+GROUP BY a.id, cu.username;
       `;
         const applicationId = row.application_id;
         const applicationsResult = await client2.query(queryApplications, [
@@ -73,7 +87,28 @@ async function sendApplicationGrafik() {
         let totalPrice = 0;
         let contractPrice = 0;
         if (applicationsResult.rows.length) {
-          let { total_sum, contract_price } = applicationsResult.rows[0];
+          let {
+            total_sum,
+            contract_price,
+            product,
+            period,
+            phone,
+            total_sum_formated,
+          } = applicationsResult.rows[0];
+          await client.query(
+            `UPDATE limit_applications 
+             SET success = $1,product_price=$3,total_sum=$4
+             WHERE application_id = $2 
+             RETURNING status;`,
+            [true, applicationId, contract_price, total_sum]
+          );
+          await updateSheetOver(
+            applicationId,
+            total_sum_formated,
+            product,
+            period,
+            phone
+          );
           totalPrice = parseFloat(total_sum) / 100 || 0;
           contractPrice = parseFloat(contract_price) / 100 || 0;
         }
@@ -349,27 +384,108 @@ async function sendYesterdayStatics() {
   }
 }
 
+async function sheetGraph() {
+  const selectQuery = `
+    SELECT application_id, 
+       TO_CHAR(created_at, 'DD/MM/YYYY') AS created_at, 
+       manager, 
+       provider, 
+       CASE
+           WHEN COALESCE(NULLIF(TRIM("limit"::TEXT), '')::NUMERIC, 0) = 0 THEN '0'
+           ELSE REPLACE(TO_CHAR(ROUND(COALESCE(NULLIF(TRIM("limit"::TEXT), '')::NUMERIC, 0) / 100, 2), 'FM999999999.00'), '.', ',')
+       END AS limit_formatted,
+       merchant, 
+       branch, 
+       fio, 
+       period, 
+       CASE
+           WHEN COALESCE(NULLIF(TRIM(total_sum::TEXT), '')::NUMERIC, 0) = 0 THEN '0'
+           ELSE REPLACE(TO_CHAR(ROUND(COALESCE(NULLIF(TRIM(total_sum::TEXT), '')::NUMERIC, 0) / 100, 2), 'FM999999999.00'), '.', ',')
+       END AS total_sum_formatted,
+       CASE
+           WHEN COALESCE(NULLIF(TRIM(product_price::TEXT), '')::NUMERIC, 0) = 0 THEN '0'
+           ELSE REPLACE(TO_CHAR(ROUND(COALESCE(NULLIF(TRIM(product_price::TEXT), '')::NUMERIC, 0) / 100, 2), 'FM999999999.00'), '.', ',')
+       END AS product_price_formatted
+FROM public.limit_applications
+WHERE success = TRUE AND graph = FALSE;
+  `;
+
+  try {
+    const result = await client.query(selectQuery);
+
+    for (const row of result.rows) {
+      const totalSum = parseFloat(row.total_sum_formatted.replace(",", "."));
+      const productPrice = parseFloat(
+        row.product_price_formatted.replace(",", ".")
+      );
+      console.log(row.created_at, "cr");
+      console.log(totalSum, "ts");
+      console.log(productPrice, "ps");
+      const percant =
+        productPrice !== 0
+          ? ((totalSum - productPrice) / productPrice) * 100
+          : 0;
+      console.log(percant, "pr");
+      const formattedPercant = percant.toFixed(2).replace(".", ",");
+
+      await limitGraphTable(
+        row.application_id,
+        row.created_at,
+        row.provider,
+        row.limit_formatted,
+        row.manager,
+        row.merchant,
+        row.branch,
+        row.fio,
+        row.period,
+        row.total_sum_formatted,
+        row.product_price_formatted,
+        formattedPercant
+      );
+
+      // Ma’lumotlar Google Sheet-ga yozilgach, `graph` ni `TRUE` qilib yangilaymiz
+      await client.query(
+        `UPDATE public.limit_applications SET graph = TRUE WHERE application_id = $1`,
+        [row.application_id]
+      );
+    }
+  } catch (error) {
+    console.error("Xatolik:", error);
+  }
+}
+
 async function createLimit() {
   try {
     const newApplications = await client2.query(
-      `SELECT a.id AS application_id,
-              a.limit_amount, 
-              a.approved_amount,
-              d.amount_approved AS davr_amount,
-              ba.approved_amount AS anor_amount,
-              a.provider,
-              a."user",
-              a.created_at 
-       FROM applications a
-       LEFT JOIN davr_applications d ON a.id = d.backend_application_id
-       LEFT JOIN billing_applications ba ON a.id = ba.backend_application_id
-       WHERE a.created_at >= NOW() - INTERVAL '2 hour'`
+      `SELECT 
+    a.id AS application_id,
+    a.limit_amount, 
+    a.approved_amount,
+    d.amount_approved AS davr_amount,
+    ba.approved_amount AS anor_amount,
+    a.provider,
+    a.period,
+    a."user",
+    cu.username AS phone,
+    CONCAT(cu.name, ' ', cu.surname) AS fio,
+    a.created_at,
+    COALESCE(m.name, m2.name) AS merchant_name,
+    b.name AS branch_name
+FROM applications a
+LEFT JOIN davr_applications d ON a.id = d.backend_application_id
+LEFT JOIN billing_applications ba ON a.id = ba.backend_application_id
+LEFT JOIN public.client_user cu ON a."user" = cu.id
+LEFT JOIN merchant m ON a.merchant = m.id
+LEFT JOIN branchs b ON a.branch = b.id
+LEFT JOIN merchant m2 ON b."merchantId" = m2.id
+WHERE a.created_at >= NOW() - INTERVAL '6 hour';
+`
     );
 
     for (const app of newApplications.rows) {
       await client.query(
-        `INSERT INTO limit_applications (application_id, "limit", anor_limit, davr_limit, provider,"user") 
-         VALUES ($1, $2, $3, $4, $5,$6)
+        `INSERT INTO limit_applications (application_id, "limit", anor_limit, davr_limit, provider,"user",phone,merchant,branch,fio,period) 
+         VALUES ($1, $2, $3, $4, $5,$6,$7,$8,$9,$10,$11)
          ON CONFLICT (application_id) DO NOTHING`,
         [
           app.application_id,
@@ -378,6 +494,11 @@ async function createLimit() {
           app.davr_amount,
           app.provider,
           app.user,
+          app.phone,
+          app.merchant_name,
+          app.branch_name,
+          app.fio,
+          app.period,
         ]
       );
     }
@@ -412,7 +533,19 @@ AND created_at::DATE = CURRENT_DATE;
     m.name as merchant_name, 
     b.name as branch_name, 
     a.user, 
-    a.updated_at,
+    TO_CHAR(a.updated_at, 'DD/MM/YYYY') AS updated_at,
+    CASE
+        WHEN COALESCE(NULLIF(a.limit_amount::TEXT, '')::NUMERIC, 0) = 0 THEN '0'
+        ELSE REPLACE(TO_CHAR(ROUND(COALESCE(NULLIF(a.limit_amount::TEXT, '')::NUMERIC, 0) / 100, 2), 'FM999999999.00'), '.', ',')
+    END AS limit_formated,
+    CASE
+        WHEN COALESCE(NULLIF(d.amount_approved::TEXT, '')::NUMERIC, 0) = 0 THEN '0'
+        ELSE REPLACE(TO_CHAR(ROUND(COALESCE(NULLIF(d.amount_approved::TEXT, '')::NUMERIC, 0) / 100, 2), 'FM999999999.00'), '.', ',')
+    END AS davr_formated,
+    CASE
+        WHEN COALESCE(NULLIF(ba.approved_amount::TEXT, '')::NUMERIC, 0) = 0 THEN '0'
+        ELSE REPLACE(TO_CHAR(ROUND(COALESCE(NULLIF(ba.approved_amount::TEXT, '')::NUMERIC, 0) / 100, 2), 'FM999999999.00'), '.', ',')
+    END AS anor_formated,
     cu.name, 
     cu.surname
 FROM applications a
@@ -439,6 +572,9 @@ WHERE a.id = $1;
             updated_at,
             anor_amount,
             merchant,
+            limit_formated,
+            davr_formated,
+            anor_formated
           } = application.rows[0];
           // Agar limit_amount yoki approved_amount 0 dan katta bo'lsa
           if (limit_amount > 0 || approved_amount > 0) {
@@ -479,9 +615,9 @@ WHERE a.id = $1;
             // xabarni eccelga saqlash
             await limitTable(
               app.application_id,
-              limitFormatted,
-              limitAnorFormatted,
-              formatDavrLimit(davr_amount),
+              limit_formated,
+              anor_formated,
+              davr_formated,
               provider,
               merchantName,
               `${name} ${surname}`,
@@ -604,6 +740,13 @@ async function handleUserAction(ctx) {
       },
     ],
   ]);
+  await client.query(
+    `UPDATE limit_applications 
+     SET manager = $1
+     WHERE application_id = $2 
+     RETURNING status;`,
+    [user, applicationId]
+  );
 
   await ctx.reply(`@${user} Заявка принята.`, {
     reply_to_message_id: messageId,
@@ -711,6 +854,13 @@ async function handleBackAction(ctx) {
 async function handleDrp1(ctx) {
   const applicationId = ctx.match[2];
   const partnerName = ctx.match[3];
+  await client.query(
+    `UPDATE limit_applications 
+     SET limit_status = $1,partner=$3
+     WHERE application_id = $2 
+     RETURNING status;`,
+    [state.drp, applicationId, partnerName]
+  );
   await updateSheetPartner(applicationId, partnerName);
   await updateSheetStatus(applicationId, state.drp);
   await ctx.editMessageText(
@@ -722,6 +872,13 @@ async function handleStatusAction(ctx) {
   const status = ctx.match[1];
   const applicationId = ctx.match[2];
   const appStatus = state[status];
+  await client.query(
+    `UPDATE limit_applications 
+     SET limit_status = $1
+     WHERE application_id = $2 
+     RETURNING status;`,
+    [appStatus, applicationId]
+  );
   await updateSheetStatus(applicationId, appStatus);
   await ctx.editMessageText(
     `📌 Ariza ID: ${applicationId} | Holat: ${appStatus}`
@@ -739,4 +896,5 @@ export {
   handleBackAction,
   handleDrp1,
   handleStatusAction,
+  sheetGraph,
 };

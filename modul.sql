@@ -51,27 +51,82 @@ CREATE TABLE bot_applications(
     CONSTRAINT unique_application_id UNIQUE (application_id)
 );
 
-ALTER TABLE bot_applications
-ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE
+    bot_applications
+ADD
+    COLUMN created_at TIMESTAMP;
 
-ALTER TABLE bot_applications
-ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE
+    bot_applications
+ALTER COLUMN
+    created_at
+SET
+    DEFAULT CURRENT_TIMESTAMP;
 
 CREATE TABLE limit_applications(
     id serial primary key,
     application_id int,
     status text default 'new',
-    limit numeric,
-    anor_limit numeric,
-    davr_limit varchar,
-    provider text,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_application_id UNIQUE (application_id)
+    limit
+        numeric, anor_limit numeric, davr_limit varchar, provider text, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT unique_application_id UNIQUE (application_id)
 );
 
-ALTER TABLE limit_applications 
-ADD COLUMN "user" text DEFAULT '0' NOT NULL;
+ALTER TABLE
+    limit_applications
+ADD
+    COLUMN "user" text DEFAULT '0' NOT NULL;
 
+-- 13.03 limit_app alter
+ALTER TABLE
+    limit_applications
+ADD
+    COLUMN manager TEXT;
+
+ALTER TABLE
+    limit_applications
+ADD
+    COLUMN partner TEXT;
+
+ALTER TABLE
+    limit_applications
+ADD
+    COLUMN limit_status TEXT;
+
+ALTER TABLE public.limit_applications 
+ALTER COLUMN total_sum SET DEFAULT 0,
+ALTER COLUMN total_sum SET NOT NULL;
+
+ALTER TABLE
+    limit_applications
+ADD
+    COLUMN product TEXT;
+
+ALTER TABLE
+    limit_applications
+ADD
+    COLUMN period VARCHAR;
+
+ALTER TABLE
+    limit_applications
+ADD
+    COLUMN phone VARCHAR;
+
+ALTER TABLE
+    limit_applications
+ADD
+    COLUMN merchant TEXT DEFAULT '',
+ADD
+    COLUMN branch TEXT DEFAULT '',
+ADD
+    COLUMN product_price NUMERIC DEFAULT 0;
+
+ALTER TABLE
+    limit_applications
+ADD
+    COLUMN fio TEXT DEFAULT '';
+ALTER TABLE limit_applications ADD COLUMN success BOOLEAN DEFAULT FALSE;
+ALTER TABLE limit_applications ADD COLUMN graph BOOLEAN DEFAULT FALSE;
 -- insert admin
 INSERT INTO
     users(
@@ -272,10 +327,8 @@ VALUES
         'ru'
     );
 
-
-
 -- insert merchants
-INSERT INTO merchants_bot (merchant_id, merchant_name, group_id) 
+INSERT INTO
+    merchants_bot (merchant_id, merchant_name, group_id)
 VALUES
-(374, 'MCHJ  "OMADLI SHUKRONA" MCHJ', -4551479181);
-
+    (374, 'MCHJ  "OMADLI SHUKRONA" MCHJ', -4551479181);

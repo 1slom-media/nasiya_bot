@@ -10,7 +10,10 @@ const config = {
   private_key:process.env.GOOGLE_PRIVATE_KEY,
   PG_PASSWORD: process.env.PG_PASSWORD,
   PG_DATABASE: process.env.PG_DATABASE,
-  BILLING_URL:process.env.BILLING_URL
+  BILLING_URL:process.env.BILLING_URL,
+  SHEET_GRAPH:process.env.SHEET_GRAPH,
+  SHEET_LIMIT:process.env.SHEET_LIMIT,
+  SHEET_GROUPS:process.env.SHEET_GROUPS,
 };
 
 export default config;

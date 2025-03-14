@@ -26,6 +26,7 @@ import {
   handleUserAction,
   sendApplicationGrafik,
   sendLimit,
+  sheetGraph,
 } from "./functions/allgood.js";
 import resendOtpWizard from "./functions/sendSMS.js";
 import verifyOtpWizard from "./functions/verifySMS.js";
@@ -47,7 +48,7 @@ client2
 setInterval(() => {
   cretaeApplicationsGrafik();
   sendApplicationGrafik();
-}, 80 * 1000);
+}, 60 * 1000);
 
 // createLimit
 setInterval(() => {
@@ -58,6 +59,11 @@ setInterval(() => {
 }, 45 * 1000);
 scheduleJob();
 
+// sendGraphLimit
+setInterval(() => {
+  sheetGraph();
+}, 10 * 60 * 1000);
+
 // newBot
 const bot = new Telegraf(config.token, { handlerTimeout: 9_000_000 });
 const stage = new Scenes.Stage([
@@ -65,7 +71,7 @@ const stage = new Scenes.Stage([
   adminMessageWizard,
   resendOtpWizard,
   verifyOtpWizard,
-  addMerchantWizard
+  addMerchantWizard,
 ]);
 bot.use(
   session({
