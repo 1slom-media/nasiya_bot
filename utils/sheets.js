@@ -101,6 +101,7 @@ async function limitGraphTable(applicationId, date, bank, limit, manager, mercha
 async function saveGroupInfo(chatId, chatTitle) {
   const doc = await accessGoogleSheet("GROUPS");
   await updateOrInsertRow(doc.sheetsByIndex[0], chatId, {
+    ChatID:chatId,
     GroupName: chatTitle,
     AddedAt: new Date().toISOString(),
   });

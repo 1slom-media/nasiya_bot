@@ -117,7 +117,7 @@ GROUP BY a.id, cu.username;
             ba.id, 
             ba.status, 
             ba.backend_application_id, 
-            ba.merchant_id,
+            COALESCE(ba.merchant_id, b."merchantId") AS merchant_id,
 	          ba.merchant_name,  
 	          ba.branch_name,  
 	          ba.provider_name,  
@@ -126,6 +126,7 @@ GROUP BY a.id, cu.username;
             mu.name AS operator_name
           FROM public.billing_applications ba
           left JOIN public.merchant_user mu ON ba.merchant_operator_id = mu.id
+          LEFT JOIN branchs b ON ba.branch_id = b.id
           WHERE ba.backend_application_id = $1 AND ba.status='BillingSuccess';
         `;
         const resultAnor = await client2.query(query, [applicationId]);
@@ -135,7 +136,7 @@ GROUP BY a.id, cu.username;
             ba.id, 
             ba.status, 
             ba.backend_application_id, 
-            ba.merchant_id,
+            COALESCE(ba.merchant_id, b."merchantId") AS merchant_id,
 	          ba.merchant_name,  
 	          ba.branch_name,  
             ba.created_at,
@@ -143,6 +144,7 @@ GROUP BY a.id, cu.username;
             mu.name AS operator_name
           FROM public.davr_applications ba
           left JOIN public.merchant_user mu ON ba.merchant_operator_id = mu.id
+          LEFT JOIN branchs b ON ba.branch_id = b.id
           WHERE ba.backend_application_id = $1;
         `;
           const resultDavr = await client2.query(query, [applicationId]);
