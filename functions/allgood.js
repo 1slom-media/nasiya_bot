@@ -19,7 +19,7 @@ import { state } from "../utils/language.js";
 
 // `applications` jadvalidan yangi yozuvlarni o'qish va `bot_applications`ga qo'shish
 async function cretaeApplicationsGrafik() {
-  let lastCheckedTime = "2025-03-12 10:02:31.438484";
+  let lastCheckedTime = "2025-04-02 10:02:31.438484";
   try {
     // Faqat yangi yozuvlarni o'qish (lastCheckedTime qiymatidan keyin)
     const query = `
@@ -60,7 +60,7 @@ async function sendApplicationGrafik() {
       let messages = [];
 
       // Har bir yangi yozuvni ishlash
-      for (const row of selectResult.rows) {
+      for (const row of selectResult.rows) { 
         const queryApplications = `
         SELECT 
     a.total_sum,
@@ -117,7 +117,10 @@ GROUP BY a.id, cu.username;
             ba.id, 
             ba.status, 
             ba.backend_application_id, 
-            COALESCE(ba.merchant_id, b."merchantId") AS merchant_id,
+            CASE 
+            WHEN ba.merchant_id IS NULL OR ba.merchant_id = 0 THEN b."merchantId"
+            ELSE ba.merchant_id
+            END AS merchant_id,
 	          ba.merchant_name,  
 	          ba.branch_name,  
 	          ba.provider_name,  
@@ -136,7 +139,10 @@ GROUP BY a.id, cu.username;
             ba.id, 
             ba.status, 
             ba.backend_application_id, 
-            COALESCE(ba.merchant_id, b."merchantId") AS merchant_id,
+            CASE 
+            WHEN ba.merchant_id IS NULL OR ba.merchant_id = 0 THEN b."merchantId"
+            ELSE ba.merchant_id
+            END AS merchant_id,
 	          ba.merchant_name,  
 	          ba.branch_name,  
             ba.created_at,
@@ -241,6 +247,7 @@ GROUP BY a.id, cu.username;
 }
 
 async function sendYesterdayStatics() {
+  console.log('yes');
   // kechagi kun aplictionsni olish
   const queryApplicationsDb = `
     SELECT id, status, created_at
@@ -260,15 +267,17 @@ async function sendYesterdayStatics() {
   try {
     const botApplicationsResult = await client.query(queryBotApplications);
     const applicationsResult = await client2.query(queryApplicationsDb);
-    const limitApplicationsResult = await client.query(queryLimitApplications);
-
-    if (botApplicationsResult.rows.length === 0) {
-      return;
-    }
+    const limitApplicationsResult = await client.query(queryLimitApplications);  
+    
+    
+    // if (botApplicationsResult.rows.length === 0) {
+    //   return;
+    // }
     // bot applicationsdan kerakli ma`lumotlarni olish
     let totalPriceSum = 0;
     let contractPriceSum = 0;
-    const totalApplications = botApplicationsResult.rows.length;
+    const totalApplications = botApplicationsResult.rows.length || 0;
+    
     let date;
     for (const row of botApplicationsResult.rows) {
       const applicationId = row.application_id;
@@ -294,10 +303,11 @@ async function sendYesterdayStatics() {
         contractPriceSum += contract_price;
       }
     }
-
+    const oneApp=applicationsResult.rows[0]
+    date = new Date(oneApp.created_at)
     // limitApplicationsdan ma`lumotlarni olish
-    const totalApp = applicationsResult.rows.length;
-    const totalLimitCount = limitApplicationsResult.rows.length;
+    const totalApp = applicationsResult.rows.length || 0;
+    const totalLimitCount = limitApplicationsResult.rows.length || 0;
     const uniqueLimits = new Set();
     let totalLimit = 0;
     let anorLimit = 0;
@@ -472,7 +482,7 @@ LEFT JOIN public.client_user cu ON a."user" = cu.id
 LEFT JOIN merchant m ON a.merchant = m.id
 LEFT JOIN branchs b ON a.branch = b.id
 LEFT JOIN merchant m2 ON b."merchantId" = m2.id
-WHERE a.created_at >= NOW() - INTERVAL '6 hour';
+WHERE a.created_at >= NOW() - INTERVAL '1 day';
 `
     );
 
