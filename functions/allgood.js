@@ -60,7 +60,7 @@ async function sendApplicationGrafik() {
       let messages = [];
 
       // Har bir yangi yozuvni ishlash
-      for (const row of selectResult.rows) { 
+      for (const row of selectResult.rows) {
         const queryApplications = `
         SELECT 
     a.total_sum,
@@ -98,7 +98,7 @@ GROUP BY a.id, cu.username;
              SET success = $1,product_price=$3,total_sum=$4,period=$5
              WHERE application_id = $2 
              RETURNING status;`,
-            [true, applicationId, contract_price, total_sum,period]
+            [true, applicationId, contract_price, total_sum, period]
           );
           await updateSheetOver(
             applicationId,
@@ -247,7 +247,7 @@ GROUP BY a.id, cu.username;
 }
 
 async function sendYesterdayStatics() {
-  console.log('yes');
+  console.log("yes");
   // kechagi kun aplictionsni olish
   const queryApplicationsDb = `
     SELECT id, status, created_at
@@ -267,9 +267,8 @@ async function sendYesterdayStatics() {
   try {
     const botApplicationsResult = await client.query(queryBotApplications);
     const applicationsResult = await client2.query(queryApplicationsDb);
-    const limitApplicationsResult = await client.query(queryLimitApplications);  
-    
-    
+    const limitApplicationsResult = await client.query(queryLimitApplications);
+
     // if (botApplicationsResult.rows.length === 0) {
     //   return;
     // }
@@ -277,7 +276,7 @@ async function sendYesterdayStatics() {
     let totalPriceSum = 0;
     let contractPriceSum = 0;
     const totalApplications = botApplicationsResult.rows.length || 0;
-    
+
     let date;
     for (const row of botApplicationsResult.rows) {
       const applicationId = row.application_id;
@@ -303,8 +302,8 @@ async function sendYesterdayStatics() {
         contractPriceSum += contract_price;
       }
     }
-    const oneApp=applicationsResult.rows[0]
-    date = new Date(oneApp.created_at)
+    const oneApp = applicationsResult.rows[0];
+    date = new Date(oneApp.created_at);
     // limitApplicationsdan ma`lumotlarni olish
     const totalApp = applicationsResult.rows.length || 0;
     const totalLimitCount = limitApplicationsResult.rows.length || 0;
@@ -425,7 +424,7 @@ WHERE success = TRUE AND graph = FALSE;
       const productPrice = parseFloat(
         row.product_price_formatted.replace(",", ".")
       );
-      console.log(row.fio,'fio');
+      console.log(row.fio, "fio");
       const percant =
         productPrice !== 0
           ? ((totalSum - productPrice) / productPrice) * 100
@@ -552,7 +551,8 @@ AND created_at::DATE = CURRENT_DATE;
         ELSE REPLACE(TO_CHAR(ROUND(COALESCE(NULLIF(ba.approved_amount::TEXT, '')::NUMERIC, 0) / 100, 2), 'FM999999999.00'), '.', ',')
     END AS anor_formated,
     cu.name, 
-    cu.surname
+    cu.surname,
+    cu.username
 FROM applications a
 LEFT JOIN client_user cu ON a.user = cu.id
 LEFT JOIN merchant m ON a.merchant = m.id
@@ -573,6 +573,7 @@ WHERE a.id = $1;
             branch_name,
             name,
             surname,
+            username,
             davr_amount,
             updated_at,
             updated_at_format,
@@ -607,6 +608,7 @@ WHERE a.id = $1;
 🏦<b>Банк:</b>${provider}
 📌<b>Мерчант: </b>${merchantName}
 👤<b>Клиент:</b>${name} ${surname}
+☎️<b>Телефон:</b>${username}
 🕒<b>Дата заявки:</b>${getFormattedDate(updated_at)}
 `;
 
