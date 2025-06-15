@@ -6,15 +6,21 @@ import getFormattedDate from "./formatedDate.js";
 const docs = {};
 
 async function accessGoogleSheet(type) {
-  if (!docs[type]) {
-    docs[type] = new GoogleSpreadsheet(config[`SHEET_${type}`]);
-    await docs[type].useServiceAccountAuth({
-      client_email: config.client_email,
-      private_key: config.private_key.replace(/\\n/g, "\n"),
-    });
-    await docs[type].loadInfo();
+  try {
+    if (!docs[type]) {
+      const doc = new GoogleSpreadsheet(config[`SHEET_${type}`]);
+      await doc.useServiceAccountAuth({
+        client_email: config.client_email,
+        private_key: config.private_key.replace(/\\n/g, "\n"),
+      });
+      await doc.loadInfo();
+      docs[type] = doc;
+    }
+    return docs[type];
+  } catch (err) {
+    console.error(`Google Sheetsga ulanishda xato (${type}):`, err);
+    throw err;
   }
-  return docs[type];
 }
 
 async function updateOrInsertRow(sheet, applicationId, data) {
@@ -22,7 +28,7 @@ async function updateOrInsertRow(sheet, applicationId, data) {
   const existingRow = rows.find((row) => row.ID === applicationId.toString());
   if (existingRow) {
     Object.keys(data).forEach((key) => {
-      if (!existingRow[key] || existingRow[key].trim() === "") {
+      if (!existingRow[key] || String(existingRow[key]).trim() === "") {
         existingRow[key] = data[key];
       }
     });
@@ -32,7 +38,14 @@ async function updateOrInsertRow(sheet, applicationId, data) {
   }
 }
 
-async function grafikTable(applicationId, merchant, operator, bank, date, link) {
+async function grafikTable(
+  applicationId,
+  merchant,
+  operator,
+  bank,
+  date,
+  link
+) {
   const doc = await accessGoogleSheet("GRAPH");
   await updateOrInsertRow(doc.sheetsByIndex[0], applicationId, {
     Merchant: merchant,
@@ -43,7 +56,16 @@ async function grafikTable(applicationId, merchant, operator, bank, date, link) 
   });
 }
 
-async function limitTable(applicationId, limit, anor_limit, davr_limit, bank, merchant, user, date) {
+async function limitTable(
+  applicationId,
+  limit,
+  anor_limit,
+  davr_limit,
+  bank,
+  merchant,
+  user,
+  date
+) {
   const doc = await accessGoogleSheet("LIMIT");
   await updateOrInsertRow(doc.sheetsByIndex[0], applicationId, {
     Limit: `'${limit}`,
@@ -58,20 +80,32 @@ async function limitTable(applicationId, limit, anor_limit, davr_limit, bank, me
 
 async function updateSheetStatus(applicationId, status) {
   const doc = await accessGoogleSheet("LIMIT");
-  await updateOrInsertRow(doc.sheetsByIndex[0], applicationId, { Status: status });
+  await updateOrInsertRow(doc.sheetsByIndex[0], applicationId, {
+    Status: status,
+  });
 }
 
 async function updateSheetPartner(applicationId, partner) {
   const doc = await accessGoogleSheet("LIMIT");
-  await updateOrInsertRow(doc.sheetsByIndex[0], applicationId, { Partner: partner });
+  await updateOrInsertRow(doc.sheetsByIndex[0], applicationId, {
+    Partner: partner,
+  });
 }
 
 async function updateSheetManager(applicationId, manager) {
   const doc = await accessGoogleSheet("LIMIT");
-  await updateOrInsertRow(doc.sheetsByIndex[0], applicationId, { Manager: manager });
+  await updateOrInsertRow(doc.sheetsByIndex[0], applicationId, {
+    Manager: manager,
+  });
 }
 
-async function updateSheetOver(applicationId, total_sum, product, period, phone) {
+async function updateSheetOver(
+  applicationId,
+  total_sum,
+  product,
+  period,
+  phone
+) {
   const doc = await accessGoogleSheet("LIMIT");
   await updateOrInsertRow(doc.sheetsByIndex[0], applicationId, {
     "Суммма Оформленных": `'${total_sum}`,
@@ -81,7 +115,20 @@ async function updateSheetOver(applicationId, total_sum, product, period, phone)
   });
 }
 
-async function limitGraphTable(applicationId, date, bank, limit, manager, merchant, branch, user, period, total_sum, product_price, percant) {
+async function limitGraphTable(
+  applicationId,
+  date,
+  bank,
+  limit,
+  manager,
+  merchant,
+  branch,
+  user,
+  period,
+  total_sum,
+  product_price,
+  percant
+) {
   const doc = await accessGoogleSheet("LIMIT");
   await updateOrInsertRow(doc.sheetsById[2033090203], applicationId, {
     "Дата сделки": date,
@@ -101,7 +148,7 @@ async function limitGraphTable(applicationId, date, bank, limit, manager, mercha
 async function saveGroupInfo(chatId, chatTitle) {
   const doc = await accessGoogleSheet("GROUPS");
   await updateOrInsertRow(doc.sheetsByIndex[0], chatId, {
-    ChatID:chatId,
+    ChatID: chatId,
     GroupName: chatTitle,
     AddedAt: new Date().toISOString(),
   });
