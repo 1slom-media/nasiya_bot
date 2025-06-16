@@ -17,6 +17,10 @@ import {
 } from "../utils/sheets.js";
 import { state } from "../utils/language.js";
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // `applications` jadvalidan yangi yozuvlarni o'qish va `bot_applications`ga qo'shish
 async function cretaeApplicationsGrafik() {
   let lastCheckedTime = "2025-04-02 10:02:31.438484";
@@ -630,16 +634,6 @@ WHERE a.id = $1;
             );
 
             // xabarni eccelga saqlash
-            await limitTable(
-              app.application_id,
-              limit_formated,
-              anor_formated,
-              davr_formated,
-              provider,
-              merchantName,
-              `${name} ${surname}`,
-              updated_at_format
-            );
 
             const inlineKeyboard = Markup.inlineKeyboard([
               [
@@ -668,6 +662,17 @@ WHERE a.id = $1;
               const chatId = groupResult.rows[0].group_id;
               messages.push({ chatId, message });
             }
+            await sleep(5000);
+            await limitTable(
+              app.application_id,
+              limit_formated,
+              anor_formated,
+              davr_formated,
+              provider,
+              merchantName,
+              `${name} ${surname}`,
+              updated_at_format
+            );
             console.log("update", app);
             console.log("updated", `${updatedLimit.rows[0].status}`);
           }
