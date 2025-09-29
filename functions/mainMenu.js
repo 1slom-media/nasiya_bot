@@ -1,7 +1,10 @@
 import { messagesRu, messagesUz } from "../utils/language.js";
+import { safeReply } from "../utils/safeReply.js"; // qo‘shildi
 
 const handleMainMenu = async (ctx, language, isRegistered, isAdmin) => {
   let options;
+  let message;
+
   if (isAdmin && isRegistered) {
     options = {
       reply_markup: {
@@ -32,10 +35,7 @@ const handleMainMenu = async (ctx, language, isRegistered, isAdmin) => {
         one_time_keyboard: true,
       },
     };
-    ctx.reply(
-      language === "uz" ? messagesUz.service : messagesRu.service,
-      options
-    );
+    message = language === "uz" ? messagesUz.service : messagesRu.service;
   } else if (isRegistered) {
     options = {
       reply_markup: {
@@ -46,10 +46,7 @@ const handleMainMenu = async (ctx, language, isRegistered, isAdmin) => {
         one_time_keyboard: true,
       },
     };
-    ctx.reply(
-      language === "uz" ? messagesUz.service : messagesRu.service,
-      options
-    );
+    message = language === "uz" ? messagesUz.service : messagesRu.service;
   } else {
     options = {
       reply_markup: {
@@ -65,11 +62,11 @@ const handleMainMenu = async (ctx, language, isRegistered, isAdmin) => {
         one_time_keyboard: true,
       },
     };
-    ctx.reply(
-      language === "uz" ? messagesUz.welcome : messagesRu.welcome,
-      options
-    );
+    message = language === "uz" ? messagesUz.welcome : messagesRu.welcome;
   }
+
+  // xavfsiz reply
+  await safeReply(ctx, message, options);
 };
 
 export default handleMainMenu;

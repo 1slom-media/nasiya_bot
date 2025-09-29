@@ -23,7 +23,7 @@ function sleep(ms) {
 
 // `applications` jadvalidan yangi yozuvlarni o'qish va `bot_applications`ga qo'shish
 async function cretaeApplicationsGrafik() {
-  let lastCheckedTime = "2025-04-02 10:02:31.438484";
+  let lastCheckedTime = "2025-09-29 10:02:31.438484";
   try {
     // Faqat yangi yozuvlarni o'qish (lastCheckedTime qiymatidan keyin)
     const query = `
