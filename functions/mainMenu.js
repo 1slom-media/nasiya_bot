@@ -30,6 +30,16 @@ const handleMainMenu = async (ctx, language, isRegistered, isAdmin) => {
                 language === "uz" ? messagesUz.merchant : messagesRu.merchant,
             },
           ],
+          [
+            {
+              text:
+                language === "uz" ? messagesUz.reqCurrClient : messagesRu.reqCurrClient,
+            },
+            {
+              text:
+                language === "uz" ? messagesUz.checkCurrClient : messagesRu.checkCurrClient,
+            },
+          ],
         ],
         resize_keyboard: true,
         one_time_keyboard: true,
