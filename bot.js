@@ -33,6 +33,8 @@ import verifyOtpWizard from "./functions/verifySMS.js";
 import { scheduleJob } from "./utils/shudele.js";
 import { saveGroupInfo } from "./utils/sheets.js";
 import addMerchantWizard from "./functions/addMerchant.js";
+import reqCurrClientWizard from "./functions/reqCurrClient.js";
+import checkCurrClientWizard from "./functions/checkCurrClient.js";
 
 // db connect
 client
@@ -72,6 +74,8 @@ const stage = new Scenes.Stage([
   resendOtpWizard,
   verifyOtpWizard,
   addMerchantWizard,
+  reqCurrClientWizard,
+  checkCurrClientWizard,
 ]);
 bot.use(
   session({
@@ -178,6 +182,16 @@ bot.hears([messagesUz.sendMes, messagesRu.sendMes], async (ctx) => {
 // addMerchant
 bot.hears([messagesUz.merchant, messagesRu.merchant], async (ctx) => {
   ctx.scene.enter("add_merchant_wizard");
+});
+
+// reqCurrClient
+bot.hears([messagesUz.reqCurrClient, messagesRu.reqCurrClient], async (ctx) => {
+  ctx.scene.enter("req_curr_client_wizard");
+});
+
+// checkCurrClient
+bot.hears([messagesUz.checkCurrClient, messagesRu.checkCurrClient], async (ctx) => {
+  ctx.scene.enter("check_curr_client_wizard");
 });
 
 // back button
