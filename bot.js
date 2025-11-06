@@ -35,6 +35,7 @@ import { saveGroupInfo } from "./utils/sheets.js";
 import addMerchantWizard from "./functions/addMerchant.js";
 import reqCurrClientWizard from "./functions/reqCurrClient.js";
 import checkCurrClientWizard from "./functions/checkCurrClient.js";
+import checkDavrPaymentWizard from "./functions/checkDavrPayment.js";
 
 // db connect
 client
@@ -76,6 +77,7 @@ const stage = new Scenes.Stage([
   addMerchantWizard,
   reqCurrClientWizard,
   checkCurrClientWizard,
+  checkDavrPaymentWizard,
 ]);
 bot.use(
   session({
@@ -192,6 +194,11 @@ bot.hears([messagesUz.reqCurrClient, messagesRu.reqCurrClient], async (ctx) => {
 // checkCurrClient
 bot.hears([messagesUz.checkCurrClient, messagesRu.checkCurrClient], async (ctx) => {
   ctx.scene.enter("check_curr_client_wizard");
+});
+
+// checkDavrPayment
+bot.hears([messagesUz.checkDavrPayment, messagesRu.checkDavrPayment], async (ctx) => {
+  ctx.scene.enter("check_davr_payment_wizard");
 });
 
 // back button
